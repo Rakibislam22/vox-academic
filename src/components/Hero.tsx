@@ -1,10 +1,8 @@
 import React from 'react';
-import bgImg from '../../public/bg-imj.png';
 
 const Hero = () => {
     return (
-        <div className='bg-[url()] bg-cover bg-center h-64 w-full'>
-            
+        <div className="bg-[url('/bg-imj.png')] h-[60vh] w-full absolute top-16 left-0 bg-cover bg-center flex items-center justify-center">
         </div>
     );
 };
