@@ -15,6 +15,8 @@ const config: Config = {
                 "electric-blue": "#1a8cff",
                 "electric-blue-light": "#3da3ff",
                 "cyan-accent": "#00d4ff",
+                "electric-blue-10": "rgba(26, 140, 255, 0.1)",
+                "cyan-accent-10": "rgba(0, 212, 255, 0.1)",
             },
             fontFamily: {
                 syne: ["var(--font-syne)", "sans-serif"],
