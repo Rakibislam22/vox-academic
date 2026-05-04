@@ -5,6 +5,35 @@ import { useState, useEffect } from "react";
 
 export default function Home() {
   const [scrollY, setScrollY] = useState(0);
+  const backgroundVideos = [
+    {
+      id: "hero-main",
+      src: "/demo.mp4",
+      className:
+        "left-1/2 top-1/2 h-[82vh] w-[min(72vw,1080px)] -translate-x-1/2 -translate-y-1/2 lg:h-[78vh] lg:w-[min(66vw,980px)]",
+      objectPosition: "center center",
+      speed: 0.06,
+      opacity: "opacity-45",
+    },
+    {
+      id: "hero-left",
+      src: "/demo2.mp4",
+      className:
+        "left-[-3%] top-[12%] h-[28vh] w-[min(26vw,360px)] rotate-[-7deg] max-lg:left-auto max-lg:right-[-2%] max-lg:top-[8%] max-lg:h-[22vh] max-lg:w-[min(40vw,320px)] max-lg:rotate-[6deg]",
+      objectPosition: "center top",
+      speed: -0.08,
+      opacity: "opacity-30",
+    },
+    {
+      id: "hero-right",
+      src: "/demo3.mp4",
+      className:
+        "right-[-2%] bottom-[10%] h-[30vh] w-[min(28vw,390px)] rotate-[6deg] max-lg:right-auto max-lg:left-[-4%] max-lg:bottom-[9%] max-lg:h-[24vh] max-lg:w-[min(42vw,340px)] max-lg:rotate-[-6deg]",
+      objectPosition: "center center",
+      speed: 0.1,
+      opacity: "opacity-30",
+    },
+  ];
 
   useEffect(() => {
     const handleScroll = () => setScrollY(window.scrollY);
@@ -16,6 +45,34 @@ export default function Home() {
     <>
       {/* Hero Section */}
       <section className="relative min-h-screen flex items-center justify-center overflow-hidden px-4 sm:px-6 lg:px-8">
+        {/* Background Videos */}
+        <div className="absolute inset-0 z-base overflow-hidden">
+          {backgroundVideos.map((video) => (
+            <div
+              key={video.id}
+              className={`absolute overflow-hidden rounded-[1.75rem] border border-white/10 bg-black/20 shadow-[0_24px_80px_rgba(0,0,0,0.35)] backdrop-blur-sm ${video.className}`}
+              style={{ transform: `translateY(${scrollY * video.speed}px)` }}
+            >
+              <video
+                className={`h-full w-full object-cover ${video.opacity}`}
+                style={{ objectPosition: video.objectPosition }}
+                autoPlay
+                muted
+                loop
+                playsInline
+                preload="auto"
+                poster="/bg-imj.png"
+                aria-hidden="true"
+              >
+                <source src={video.src} type="video/mp4" />
+              </video>
+              <div className="absolute inset-0 bg-linear-to-b from-black/10 via-transparent to-black/35" />
+            </div>
+          ))}
+          <div className="absolute inset-0 bg-linear-to-b from-navy-dark/40 via-navy-darker/55 to-charcoal/75" />
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(26,140,255,0.18),transparent_45%),radial-gradient(circle_at_bottom_right,rgba(0,212,255,0.12),transparent_38%)]" />
+        </div>
+
         {/* Animated background elements */}
         <div className="absolute inset-0 z-base">
           <div
@@ -67,7 +124,7 @@ export default function Home() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-20">
             {/* Feature 1 */}
             <div className="group relative panel p-6 hover:border-light/60 transition-smooth cursor-pointer">
-              <div className="absolute inset-0 bg-gradient-to-br from-electric-blue/5 to-transparent rounded-xl opacity-0 group-hover:opacity-100 transition-opacity" />
+              <div className="absolute inset-0 bg-linear-to-br from-electric-blue/5 to-transparent rounded-xl opacity-0 group-hover:opacity-100 transition-opacity" />
               <div className="relative z-10">
                 <div className="w-12 h-12 rounded-lg bg-electric-blue/20 flex items-center justify-center mb-4 group-hover:bg-electric-blue/30 transition-smooth">
                   <span className="text-2xl">📄</span>
@@ -82,7 +139,7 @@ export default function Home() {
 
             {/* Feature 2 */}
             <div className="group relative panel p-6 hover:border-light/60 transition-smooth cursor-pointer">
-              <div className="absolute inset-0 bg-gradient-to-br from-electric-blue/5 to-transparent rounded-xl opacity-0 group-hover:opacity-100 transition-opacity" />
+              <div className="absolute inset-0 bg-linear-to-br from-electric-blue/5 to-transparent rounded-xl opacity-0 group-hover:opacity-100 transition-opacity" />
               <div className="relative z-10">
                 <div className="w-12 h-12 rounded-lg bg-electric-blue/20 flex items-center justify-center mb-4 group-hover:bg-electric-blue/30 transition-smooth">
                   <span className="text-2xl">🧠</span>
@@ -97,7 +154,7 @@ export default function Home() {
 
             {/* Feature 3 */}
             <div className="group relative panel p-6 hover:border-light/60 transition-smooth cursor-pointer">
-              <div className="absolute inset-0 bg-gradient-to-br from-electric-blue/5 to-transparent rounded-xl opacity-0 group-hover:opacity-100 transition-opacity" />
+              <div className="absolute inset-0 bg-linear-to-br from-electric-blue/5 to-transparent rounded-xl opacity-0 group-hover:opacity-100 transition-opacity" />
               <div className="relative z-10">
                 <div className="w-12 h-12 rounded-lg bg-electric-blue/20 flex items-center justify-center mb-4 group-hover:bg-electric-blue/30 transition-smooth">
                   <span className="text-2xl">⚡</span>
@@ -124,7 +181,7 @@ export default function Home() {
             {/* Left Column */}
             <div className="space-y-8">
               <div className="flex gap-4">
-                <div className="flex-shrink-0">
+                <div className="shrink-0">
                   <div className="flex items-center justify-center h-12 w-12 rounded-lg bg-electric-blue/20">
                     <span className="text-xl">🎯</span>
                   </div>
@@ -139,7 +196,7 @@ export default function Home() {
               </div>
 
               <div className="flex gap-4">
-                <div className="flex-shrink-0">
+                <div className="shrink-0">
                   <div className="flex items-center justify-center h-12 w-12 rounded-lg bg-cyan-accent/20">
                     <span className="text-xl">📊</span>
                   </div>
@@ -154,7 +211,7 @@ export default function Home() {
               </div>
 
               <div className="flex gap-4">
-                <div className="flex-shrink-0">
+                <div className="shrink-0">
                   <div className="flex items-center justify-center h-12 w-12 rounded-lg bg-electric-blue/20">
                     <span className="text-xl">🎚️</span>
                   </div>
@@ -172,7 +229,7 @@ export default function Home() {
             {/* Right Column */}
             <div className="relative">
               <div className="panel p-8 border-light">
-                <div className="aspect-video bg-gradient-to-br from-electric-blue/10 to-cyan-accent/5 rounded-lg flex items-center justify-center mb-6 overflow-hidden relative">
+                <div className="aspect-video bg-linear-to-br from-electric-blue/10 to-cyan-accent/5 rounded-lg flex items-center justify-center mb-6 overflow-hidden relative">
                   {/* Fake dashboard preview */}
                   <div className="absolute inset-0 opacity-50">
                     <div className="h-full flex flex-col">
