@@ -11,15 +11,15 @@ const VideoSlider = () => {
     const backgroundVideos = [
         {
             id: "hero-main",
-            src: "/demo.mp4",
+            src: "/demo.webm",
         },
         {
             id: "hero-left",
-            src: "/demo2.mp4",
+            src: "/demo2.webm",
         },
         {
             id: "hero-right",
-            src: "/demo3.mp4",
+            src: "/demo3.webm",
         },
     ];
 
