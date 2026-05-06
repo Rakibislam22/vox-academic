@@ -1,80 +1,87 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 const VideoSlider = () => {
-
     const [currentVideoIndex, setCurrentVideoIndex] = useState(0);
     const [nextVideoIndex, setNextVideoIndex] = useState<number | null>(null);
     const [isTransitioning, setIsTransitioning] = useState(false);
+    const [isMobile, setIsMobile] = useState(false); // Mobile detection state
 
     const backgroundVideos = [
-        {
-            id: "hero-main",
-            src: "/demo.mp4",
-        },
-        {
-            id: "hero-left",
-            src: "/demo2.mp4",
-        },
-        {
-            id: "hero-right",
-            src: "/demo3.mp4",
-        },
+        { id: "hero-main", src: "/demo.webm" },
+        { id: "hero-left", src: "/demo2.webm" },
+        { id: "hero-right", src: "/demo3.webm" },
     ];
+
+    const mBackgroundVideos = [
+        { id: "hero-main", src: "/mDemo.webm" },
+        { id: "hero-left", src: "/mDemo2.webm" },
+        { id: "hero-right", src: "/mDemo3.webm" },
+    ];
+
+    // Screen size check korar jonno useEffect
+    useEffect(() => {
+        const checkScreenSize = () => {
+            setIsMobile(window.innerWidth < 768); // 768px er niche thakle mobile dhorbe
+        };
+
+        checkScreenSize(); // Initial check
+        window.addEventListener("resize", checkScreenSize);
+        return () => window.removeEventListener("resize", checkScreenSize);
+    }, []);
+
+    // Bortoman list konta hobe seta decide kora
+    const activeVideoList = isMobile ? mBackgroundVideos : backgroundVideos;
 
     const handleVideoEnd = () => {
         if (isTransitioning) return;
-        const next = (currentVideoIndex + 1) % backgroundVideos.length;
+        const next = (currentVideoIndex + 1) % activeVideoList.length;
         setNextVideoIndex(next);
     };
 
     const handleNextVideoReady = () => {
-        // Start crossfade only after next video is confirmed ready by the browser
         setIsTransitioning(true);
-
         const timerId = window.setTimeout(() => {
             setCurrentVideoIndex(nextVideoIndex!);
             setNextVideoIndex(null);
             setIsTransitioning(false);
-        }, 800); // Slightly longer than CSS transition to ensure stability
-
+        }, 800);
         return () => window.clearTimeout(timerId);
     };
 
     return (
-        <div>
-            {backgroundVideos.map((video, index) => {
+        <div className="relative w-full h-screen overflow-hidden">
+            {activeVideoList.map((video, index) => {
                 const isActive = index === currentVideoIndex;
                 const isNext = index === nextVideoIndex;
 
-                // Only render active or next video to keep DOM clean but prevent unmounting blink
                 if (!isActive && !isNext) return null;
 
                 return (
                     <div
-                        key={video.id}
+                        key={`${isMobile ? 'm' : 'd'}-${video.id}`} // Screen change hole jeno refresh hoy
                         className="absolute inset-0 transition-opacity duration-700 ease-in-out"
                         style={{
-                            // Current video fades out, next video fades in
                             opacity: isActive && isTransitioning ? 0 : (isActive || (isNext && isTransitioning) ? 1 : 0),
                             zIndex: isNext ? 10 : 5,
                         }}
                     >
                         <video
-                            className="h-full w-full object-cover object-right"
+                            className="h-full w-full object-cover"
                             autoPlay
                             muted
                             playsInline
+                            key={video.src} // Src change hole video element reload hobe
                             preload="auto"
                             poster="/bg-imj.png"
-                            aria-hidden="true"
                             onEnded={isActive ? handleVideoEnd : undefined}
                             onCanPlayThrough={isNext ? handleNextVideoReady : undefined}
                         >
-                            <source src={video.src} type="video/mp4" />
+                            {/* File extension onujayi type thik kora */}
+                            <source src={video.src} type={video.src.endsWith('.webm') ? 'video/webm' : 'video/mp4'} />
                         </video>
-                        <div className="absolute inset-0 bg-linear-to-b from-black/10 via-transparent to-black/35" />
+                        <div className="absolute inset-0 bg-gradient-to-b from-black/10 via-transparent to-black/35" />
                     </div>
                 );
             })}
