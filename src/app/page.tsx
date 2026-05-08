@@ -61,11 +61,15 @@ export default function Home() {
       {/* Features Section */}
       <section className="relative py-20 px-4 sm:px-6 lg:px-8">
         <FeatureSe />
+        <div className="absolute top-0 left-0 right-0 h-20 bg-gradient-to-t from-transparent to-gradient-bg pointer-events-none" style={{
+                            backgroundImage: 'linear-gradient(to top, transparent, #050b18)'
+                        }} />
       </section>
 
       {/* How It Works Section */}
       <section className="relative py-20 px-4 sm:px-6 lg:px-8">
         <HowItWorks />
+        
       </section>
 
       {/* Interactive Features Section */}
