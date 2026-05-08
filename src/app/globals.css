@@ -248,6 +248,22 @@ body::after {
     transition: all 150ms ease-out;
 }
 
+.video-mask-bottom {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 50vh; 
+    background: linear-gradient(
+        to bottom,
+        transparent 0%,
+        rgba(5, 11, 24, 0.5) 40%,
+        rgba(5, 11, 24, 1) 100%
+    );
+    pointer-events: none;
+    z-index: 25;
+}
+
 @keyframes pulse-soft {
 
     0%,

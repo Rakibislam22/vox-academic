@@ -19,9 +19,7 @@ export default function Home() {
 
           <VideoSlider />
 
-          {/* Persistent Overlays */}
-          <div className="absolute inset-0 bg-linear-to-b from-navy-dark/40 via-navy-darker/55 to-charcoal/75 z-20" />
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(26,140,255,0.18),transparent_45%),radial-gradient(circle_at_bottom_right,rgba(0,212,255,0.12),transparent_38%)] z-20" />
+          <div className="video-mask-bottom" />
         </div>
 
         {/* Content */}
@@ -59,17 +57,14 @@ export default function Home() {
       </section>
 
       {/* Features Section */}
-      <section className="relative py-20 px-4 sm:px-6 lg:px-8">
+      <section className="relative py-20 px-4 sm:px-6 lg:px-8 bg-transparent">
         <FeatureSe />
-        <div className="absolute top-0 left-0 right-0 h-20 bg-gradient-to-t from-transparent to-gradient-bg pointer-events-none" style={{
-                            backgroundImage: 'linear-gradient(to top, transparent, #050b18)'
-                        }} />
       </section>
 
       {/* How It Works Section */}
       <section className="relative py-20 px-4 sm:px-6 lg:px-8">
         <HowItWorks />
-        
+
       </section>
 
       {/* Interactive Features Section */}
