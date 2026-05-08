@@ -81,7 +81,6 @@ const VideoSlider = () => {
                             {/* File extension onujayi type thik kora */}
                             <source src={video.src} type={video.src.endsWith('.webm') ? 'video/webm' : 'video/mp4'} />
                         </video>
-                        <div className="absolute inset-0 bg-gradient-to-b from-black/10 via-transparent to-black/35" />
                     </div>
                 );
             })}
