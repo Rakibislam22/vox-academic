@@ -14,9 +14,9 @@ export default function Sidebar() {
     ];
 
     return (
-        <aside className="w-full xl:w-52 xl:min-h-screen bg-navy-darker border-b xl:border-b-0 xl:border-r border-light flex xl:flex-col">
+        <aside className="w-full xl:w-52 h-auto xl:h-full xl:min-h-0 bg-white/[0.02] backdrop-blur-xl border-b xl:border-b-0 xl:border-r border-white/10 flex xl:flex-col">
             {/* Logo/Brand */}
-            <div className="h-16 w-24 sm:w-28 xl:w-full border-r xl:border-r-0 xl:border-b border-light flex items-center justify-center flex-shrink-0">
+            <div className="h-16 w-24 sm:w-28 xl:w-full border-r xl:border-r-0 xl:border-b border-white/10 flex items-center justify-center shrink-0 bg-white/[0.03]">
                 <Link href="/" className="text-xl font-bold accent-primary">
                     Vox
                 </Link>
@@ -29,7 +29,7 @@ export default function Sidebar() {
                         <button
                             key={item.id}
                             onClick={() => setActiveNav(item.id)}
-                            className={`flex items-center gap-3 px-4 py-3 rounded-lg text-label transition-smooth whitespace-nowrap xl:w-full ${activeNav === item.id
+                            className={`flex items-center gap-3 px-4 py-3 rounded-lg text-label transition-transform active:scale-95 whitespace-nowrap xl:w-full ${activeNav === item.id
                                 ? "bg-electric-blue/20 text-electric-blue border border-electric-blue/40"
                                 : "text-white/70 hover:text-white/90 hover:bg-navy-dark"
                                 }`}
@@ -47,9 +47,9 @@ export default function Sidebar() {
             </nav>
 
             {/* User Profile */}
-            <div className="hidden xl:block border-t border-light p-4">
-                <div className="flex items-center gap-3 p-2 rounded-lg hover:bg-navy-dark transition-smooth cursor-pointer">
-                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-electric-blue to-cyan-accent flex items-center justify-center text-xs font-bold text-navy-dark">
+            <div className="hidden xl:block border-t border-white/10 p-4 bg-white/[0.02]">
+                <div className="flex items-center gap-3 p-2 rounded-lg hover:bg-navy-dark active:scale-95 transition-transform cursor-pointer">
+                    <div className="w-8 h-8 rounded-full bg-linear-to-br from-electric-blue to-cyan-accent flex items-center justify-center text-xs font-bold text-navy-dark">
                         U
                     </div>
                     <div className="flex-1 min-w-0">
