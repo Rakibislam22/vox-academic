@@ -34,35 +34,38 @@ export default function PDFPanel() {
     });
 
     return (
-        <div className="panel border-light flex flex-col h-full min-h-0 overflow-hidden">
+        <div className="panel flex flex-col h-full min-h-0 overflow-hidden rounded-2xl bg-white/[0.02] backdrop-blur-xl border border-white/10 shadow-[0_24px_80px_rgba(0,0,0,0.35)]">
             {/* Header */}
-            <div className="border-b border-light px-4 sm:px-6 py-4">
+            <div className="border-b border-white/10 px-5 sm:px-6 py-5 bg-white/[0.03]">
                 <h2 className="text-subheading mb-2 text-base sm:text-lg lg:text-xl">
                     <span className="text-warm text-cyan-accent">Aural Learning</span> in
                     Cognitive Psychology
                 </h2>
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 text-data text-white/50">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 text-data text-slate-400">
                     <span>Page 12 of 45</span>
                     <span>Reading time: 8:24</span>
                 </div>
             </div>
 
             {/* PDF Content Area */}
-            <div className="flex-1 overflow-auto scrollbar-custom p-4 sm:p-6 relative">
+            <div className="flex-1 overflow-auto scrollbar-custom p-5 sm:p-6 relative">
                 {/* Scan-line effect */}
                 <div className="absolute inset-0 pointer-events-none">
-                    <div className="absolute inset-x-0 h-1 bg-gradient-to-r from-transparent via-electric-blue to-transparent opacity-30 animate-scan-line" />
+                    <div className="absolute inset-x-0 h-1 bg-linear-to-r from-transparent via-electric-blue to-transparent opacity-30 animate-scan-line" />
                 </div>
 
                 {/* Main content */}
                 <div className="prose prose-invert max-w-none">
                     {/* Paragraph 1 */}
-                    <p className="text-body leading-relaxed text-sm sm:text-base text-white/85 mb-6">
-                        {highlightWords}
+                    <p className="text-body leading-relaxed text-sm sm:text-base text-white mb-6">
+                        <span className="relative inline-flex w-full rounded-2xl border border-white/10 bg-white/[0.03] px-3 py-3 shadow-[0_0_0_1px_rgba(255,255,255,0.02),0_0_30px_rgba(26,140,255,0.12)]">
+                            <span className="absolute left-3 top-1/2 h-2 w-2 -translate-y-1/2 rounded-full bg-cyan-accent shadow-[0_0_14px_rgba(0,212,255,0.9)]" />
+                            <span className="pl-5">{highlightWords}</span>
+                        </span>
                     </p>
 
                     {/* Paragraph 2 */}
-                    <p className="text-body leading-relaxed text-sm sm:text-base text-white/85 mb-6">
+                    <p className="text-body leading-relaxed text-sm sm:text-base text-white mb-6">
                         This adaptive capacity, known as synaptic plasticity, allows the brain to form new
                         neural connections and reorganize existing pathways in response to learning,
                         experience, and injury. The implications for education are profound: traditional
@@ -71,7 +74,7 @@ export default function PDFPanel() {
                     </p>
 
                     {/* Paragraph 3 */}
-                    <p className="text-body leading-relaxed text-sm sm:text-base text-white/85 mb-6">
+                    <p className="text-body leading-relaxed text-sm sm:text-base text-white mb-6">
                         Research conducted at leading cognitive science laboratories has consistently
                         demonstrated that auditory input combined with visual tracking significantly
                         enhances comprehension retention and long-term memory formation. When learners
@@ -80,17 +83,17 @@ export default function PDFPanel() {
                     </p>
 
                     {/* Callout Box */}
-                    <div className="my-8 p-4 panel-inset border-light">
+                    <div className="my-8 p-4 panel-inset border border-white/10 bg-white/[0.03]">
                         <div className="text-label accent-primary mb-2">💡 Key Finding</div>
                         <p className="text-body text-sm sm:text-base text-white/80">
                             Multi-modal learning (audio + visual) increases retention by 65% compared to
-                            single-modality approaches, according to Mayer's Cognitive Theory of Multimedia
+                            single-modality approaches, according to Mayer&apos;s Cognitive Theory of Multimedia
                             Learning (2009).
                         </p>
                     </div>
 
                     {/* Paragraph 4 */}
-                    <p className="text-body leading-relaxed text-sm sm:text-base text-white/85">
+                    <p className="text-body leading-relaxed text-sm sm:text-base text-white">
                         The synchronization between auditory playback and visual highlighting serves two
                         critical functions: it maintains attention through paced exposure and it leverages
                         the dual-coding hypothesis, whereby concepts encoded in multiple formats are more
@@ -100,7 +103,7 @@ export default function PDFPanel() {
             </div>
 
             {/* Footer Info */}
-            <div className="border-t border-light px-4 sm:px-6 py-3 bg-navy-dark/50 text-data text-white/40">
+            <div className="border-t border-white/10 px-5 sm:px-6 py-4 bg-white/[0.03] text-data text-white/40">
                 <span>📍 Synchronized to: 2m 45s</span>
             </div>
         </div>

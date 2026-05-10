@@ -35,7 +35,9 @@ export default function RootLayout({
       lang="en"
       className={`${syne.variable} ${instrumentSerif.variable} ${jetbrainsMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col bg-gradient-to-br from-navy-dark via-navy-darker to-charcoal text-white">{children}</body>
+      <body className="min-h-full flex flex-col bg-linear-to-br from-navy-dark via-navy-darker to-charcoal text-white">
+        {children}
+      </body>
     </html>
   );
 }

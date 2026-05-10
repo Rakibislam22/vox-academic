@@ -1,5 +1,7 @@
 "use client";
 
+const waveformHeights = [34, 58, 44, 76, 52, 63, 41, 71, 49, 68, 37, 55, 62, 46, 74, 39, 57, 69, 43, 61, 48, 73, 35, 66];
+
 export default function SummaryPanel() {
     const insights = [
         {
@@ -29,9 +31,9 @@ export default function SummaryPanel() {
     ];
 
     return (
-        <div className="panel border-light flex flex-col h-full min-h-0 overflow-hidden">
+        <div className="panel flex flex-col h-full min-h-0 overflow-hidden rounded-2xl bg-white/2 backdrop-blur-xl border border-white/10 shadow-[0_24px_80px_rgba(0,0,0,0.35)]">
             {/* Header */}
-            <div className="border-b border-light px-4 sm:px-6 py-4 bg-navy-dark/50">
+            <div className="border-b border-white/10 px-5 sm:px-6 py-5 bg-white/3">
                 <h3 className="text-subheading flex items-center gap-2">
                     <span>🧠</span>
                     AI Insights
@@ -41,26 +43,26 @@ export default function SummaryPanel() {
             {/* Content */}
             <div className="flex-1 overflow-auto scrollbar-custom">
                 {/* Key Concepts */}
-                <div className="px-4 sm:px-6 py-5 sm:py-6 border-b border-light/30">
+                <div className="px-5 sm:px-6 py-5 sm:py-6 border-b border-white/10">
                     <div className="text-label accent-primary mb-4">Key Concepts</div>
                     <div className="space-y-3">
                         {insights.map((insight, idx) => (
                             <div
                                 key={idx}
-                                className="group p-3 panel-inset border-subtle hover:border-light/50 transition-smooth cursor-pointer"
+                                className="group p-3 panel-inset border border-white/5 hover:border-white/10 active:scale-95 transition-transform cursor-pointer bg-white/3"
                             >
                                 <div className="flex items-start gap-3">
                                     <div
-                                        className={`flex-shrink-0 w-2 h-2 rounded-full mt-2 ${insight.color === "cyan-accent"
+                                        className={`shrink-0 w-2 h-2 rounded-full mt-2 ${insight.color === "cyan-accent"
                                             ? "bg-cyan-accent"
                                             : "bg-electric-blue"
                                             }`}
                                     />
                                     <div className="flex-1 min-w-0">
-                                        <div className="text-label text-white/90 group-hover:accent-primary transition-colors">
+                                        <div className="text-label text-white group-hover:accent-primary transition-colors">
                                             {insight.label}
                                         </div>
-                                        <p className="text-xs text-white/60 mt-1">
+                                        <p className="text-xs text-slate-400 mt-1">
                                             {insight.description}
                                         </p>
                                     </div>
@@ -71,17 +73,17 @@ export default function SummaryPanel() {
                 </div>
 
                 {/* Study Tips */}
-                <div className="px-4 sm:px-6 py-5 sm:py-6 border-b border-light/30">
+                <div className="px-5 sm:px-6 py-5 sm:py-6 border-b border-white/10">
                     <div className="text-label accent-primary mb-4">💡 Study Tips</div>
                     <div className="space-y-3">
                         {studyTips.map((tip, idx) => (
                             <div
                                 key={idx}
-                                className="p-3 panel-inset border-subtle hover:border-light/50 transition-smooth"
+                                className="p-3 panel-inset border border-white/5 hover:border-white/10 active:scale-95 transition-transform bg-white/3"
                             >
                                 <div className="flex items-start gap-3">
-                                    <span className="flex-shrink-0 text-lg">✓</span>
-                                    <p className="text-xs text-white/70">{tip}</p>
+                                    <span className="shrink-0 text-lg">✓</span>
+                                    <p className="text-xs text-slate-300">{tip}</p>
                                 </div>
                             </div>
                         ))}
@@ -89,29 +91,29 @@ export default function SummaryPanel() {
                 </div>
 
                 {/* Waveform Visualizer */}
-                <div className="px-4 sm:px-6 py-5 sm:py-6">
+                <div className="px-5 sm:px-6 py-5 sm:py-6">
                     <div className="text-label accent-primary mb-4">Audio Activity</div>
-                    <div className="h-14 sm:h-16 panel-inset border-subtle rounded-lg flex items-center justify-center p-4 gap-1 overflow-hidden">
-                        {Array.from({ length: 24 }).map((_, i) => (
+                    <div className="h-14 sm:h-16 panel-inset border border-white/5 rounded-xl flex items-center justify-center p-4 gap-1 overflow-hidden bg-white/3">
+                        {waveformHeights.map((height, i) => (
                             <div
                                 key={i}
-                                className="flex-1 h-full min-w-[3px] bg-gradient-to-t from-electric-blue to-cyan-accent rounded-sm opacity-70 animate-breathe"
+                                className="flex-1 h-full min-w-0.75 bg-linear-to-t from-electric-blue to-cyan-accent rounded-sm opacity-70 animate-breathe"
                                 style={{
                                     animationDelay: `${i * 0.08}s`,
-                                    height: `${30 + Math.random() * 70}%`,
+                                    height: `${height}%`,
                                 }}
                             />
                         ))}
                     </div>
-                    <div className="text-data text-white/40 mt-2 text-center text-[10px] sm:text-xs">
+                    <div className="text-data text-slate-400 mt-2 text-center text-[10px] sm:text-xs">
                         Playing at 1.25x speed
                     </div>
                 </div>
             </div>
 
             {/* Footer Action */}
-            <div className="border-t border-light/30 px-4 sm:px-6 py-4 bg-navy-dark/50">
-                <button className="w-full btn-secondary text-center">
+            <div className="border-t border-white/10 px-5 sm:px-6 py-4 bg-white/3">
+                <button className="w-full btn-secondary text-center active:scale-95 transition-transform">
                     Download Summary PDF
                 </button>
             </div>

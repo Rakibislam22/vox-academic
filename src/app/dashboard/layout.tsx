@@ -11,7 +11,7 @@ export default function DashboardLayout({
 }) {
     return (
         <PDFProvider>
-            <div className="flex min-h-screen flex-col xl:flex-row overflow-hidden bg-gradient-foundation">
+            <div className="flex h-[100dvh] min-h-0 flex-col xl:flex-row overflow-hidden bg-gradient-foundation">
                 {/* Sidebar */}
                 <Sidebar />
 
