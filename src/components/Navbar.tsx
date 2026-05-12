@@ -5,7 +5,7 @@ const Navbar = () => {
         <div>
             <div className="max-lg:collapse bg-base-200 lg:mb-48 shadow-sm w-full rounded-md">
                 <input id="navbar-1-toggle" className="peer hidden" type="checkbox" />
-                <label htmlFor="navbar-1-toggle" className="fixed inset-0 hidden max-lg:peer-checked:block"></label>
+                <label htmlFor="navbar-1-toggle" className="fixed inset-0 hidden max-lg:peer-checked:block z-40 bg-black/40"></label>
                 <div className="collapse-title navbar">
                     <div className="navbar-start">
                         <label htmlFor="navbar-1-toggle" className="btn btn-ghost lg:hidden">
@@ -33,8 +33,8 @@ const Navbar = () => {
                     </div>
                 </div>
 
-                <div className="collapse-content lg:hidden z-1">
-                    <ul className="menu">
+                <div className="collapse-content lg:hidden max-lg:peer-checked:fixed max-lg:peer-checked:inset-y-0 max-lg:peer-checked:left-0 max-lg:peer-checked:w-64 max-lg:peer-checked:bg-base-100 max-lg:peer-checked:z-50 max-lg:peer-checked:overflow-auto">
+                    <ul className="menu p-4">
                         <li><button>Item 1</button></li>
                         <li>
                             <button>Parent</button>
