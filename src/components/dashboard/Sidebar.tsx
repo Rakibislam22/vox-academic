@@ -3,7 +3,12 @@
 import Link from "next/link";
 import { useState } from "react";
 
-export default function Sidebar() {
+type Props = {
+    isDrawer?: boolean;
+    onClose?: () => void;
+};
+
+export default function Sidebar({ isDrawer = false, onClose }: Props) {
     const [activeNav, setActiveNav] = useState("library");
 
     const navItems = [
@@ -13,18 +18,29 @@ export default function Sidebar() {
         { id: "settings", label: "Settings", icon: "⚙️", badge: "" },
     ];
 
+    const baseClasses = isDrawer
+        ? "fixed inset-y-0 left-0 w-72 max-w-[85vw] z-50 bg-white/2 backdrop-blur-xl border-r border-white/10 flex flex-col overflow-auto"
+        : "w-full xl:w-52 h-auto xl:h-full xl:min-h-0 bg-white/2 backdrop-blur-xl border-b xl:border-b-0 xl:border-r border-white/10 flex xl:flex-col";
+
     return (
-        <aside className="w-full xl:w-52 h-auto xl:h-full xl:min-h-0 bg-white/[0.02] backdrop-blur-xl border-b xl:border-b-0 xl:border-r border-white/10 flex xl:flex-col">
-            {/* Logo/Brand */}
-            <div className="h-16 w-24 sm:w-28 xl:w-full border-r xl:border-r-0 xl:border-b border-white/10 flex items-center justify-center shrink-0 bg-white/[0.03]">
+        <aside className={baseClasses}>
+            <div className={`h-16 w-full border-r xl:border-r-0 xl:border-b border-white/10 flex items-center justify-between px-4 shrink-0 bg-white/3 ${isDrawer ? "border-r-0" : ""}`}>
                 <Link href="/" className="text-xl font-bold accent-primary">
                     Vox
                 </Link>
+                {isDrawer && (
+                    <button
+                        aria-label="Close menu"
+                        onClick={onClose}
+                        className="lg:hidden btn btn-ghost btn-sm"
+                    >
+                        ✕
+                    </button>
+                )}
             </div>
 
-            {/* Navigation */}
             <nav className="flex-1 overflow-x-auto overflow-y-hidden xl:overflow-y-auto scrollbar-custom px-2 sm:px-3 py-3 xl:py-6">
-                <div className="flex xl:block gap-2 xl:space-y-2 min-w-max xl:min-w-0">
+                <div className="flex flex-col gap-2 xl:space-y-2 xl:block min-w-0">
                     {navItems.map((item) => (
                         <button
                             key={item.id}
@@ -46,8 +62,7 @@ export default function Sidebar() {
                 </div>
             </nav>
 
-            {/* User Profile */}
-            <div className="hidden xl:block border-t border-white/10 p-4 bg-white/[0.02]">
+            <div className="hidden xl:block border-t border-white/10 p-4 bg-white/2">
                 <div className="flex items-center gap-3 p-2 rounded-lg hover:bg-navy-dark active:scale-95 transition-transform cursor-pointer">
                     <div className="w-8 h-8 rounded-full bg-linear-to-br from-electric-blue to-cyan-accent flex items-center justify-center text-xs font-bold text-navy-dark">
                         U
