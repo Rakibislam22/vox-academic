@@ -19,13 +19,16 @@ export default function Sidebar({ isDrawer = false, onClose }: Props) {
     ];
 
     const baseClasses = isDrawer
-        ? "fixed inset-y-0 left-0 w-72 max-w-[85vw] z-50 bg-white/2 backdrop-blur-xl border-r border-white/10 flex flex-col overflow-auto"
+        ? "fixed inset-y-0 left-0 w-72 max-w-[85vw] z-50 bg-white/2 backdrop-blur-xl border-r border-white/10 flex flex-col overflow-y-auto overflow-x-hidden overscroll-contain"
         : "w-full xl:w-52 h-auto xl:h-full xl:min-h-0 bg-white/2 backdrop-blur-xl border-b xl:border-b-0 xl:border-r border-white/10 flex xl:flex-col";
 
     return (
         <aside className={baseClasses}>
-            <div className={`h-16 w-full border-r xl:border-r-0 xl:border-b border-white/10 flex items-center justify-between px-4 shrink-0 bg-white/3 ${isDrawer ? "border-r-0" : ""}`}>
-                <Link href="/" className="text-xl font-bold accent-primary">
+            <div className={`relative h-16 w-full border-r xl:border-r-0 xl:border-b border-white/10 flex items-center px-4 shrink-0 bg-white/3 ${isDrawer ? "justify-between border-r-0" : "justify-center"}`}>
+                <Link
+                    href="/"
+                    className={`text-xl font-bold accent-primary ${isDrawer ? "" : "absolute left-1/2 -translate-x-1/2"}`}
+                >
                     Vox
                 </Link>
                 {isDrawer && (
