@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { JetBrains_Mono, Syne, Instrument_Serif } from "next/font/google";
 import "./globals.css";
+import Providers from "@/components/Providers";
 
 const syne = Syne({
   variable: "--font-syne",
@@ -36,7 +37,7 @@ export default function RootLayout({
       className={`${syne.variable} ${instrumentSerif.variable} ${jetbrainsMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-linear-to-br from-navy-dark via-navy-darker to-charcoal text-white">
-        {children}
+        <Providers>{children}</Providers>
       </body>
     </html>
   );
