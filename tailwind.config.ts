@@ -1,5 +1,9 @@
 import type { Config } from "tailwindcss";
-import daisyui from 'daisyui';
+import daisyuiModule from 'daisyui';
+
+type TailwindPlugin = NonNullable<Config['plugins']>[number];
+
+const daisyui = daisyuiModule as unknown as TailwindPlugin;
 
 const config: Config = {
     content: [
