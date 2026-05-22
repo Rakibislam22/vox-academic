@@ -1,15 +1,17 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useTransition } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { signIn, useSession } from "next-auth/react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { loginSchema, type LoginInput } from "@/lib/validations/auth";
 
 export default function LoginPageClient() {
+    const router = useRouter();
     const searchParams = useSearchParams();
+    const [isPending, startTransition] = useTransition();
     
     // Dynamic callback resolution targeting dashboard base cleanly
     const callbackUrl = searchParams?.get("callbackUrl") || "/dashboard";
@@ -30,12 +32,15 @@ export default function LoginPageClient() {
         },
     });
 
-    // Window-level interceptor: Redirects users immediately if an active authenticated session exists
+    // Handle existing session validation using standard router pushed transitions instead of hard window loops
     useEffect(() => {
         if (status === "authenticated") {
-            window.location.assign(callbackUrl);
+            startTransition(() => {
+                router.replace(callbackUrl);
+                router.refresh();
+            });
         }
-    }, [status, callbackUrl]);
+    }, [status, callbackUrl, router]);
 
     const onSubmit = async (values: LoginInput) => {
         try {
@@ -50,8 +55,11 @@ export default function LoginPageClient() {
                 return;
             }
 
-            // Fix: Using .assign() bypasses immutability assignment restrictions while forcing a clean cache-free reload
-            window.location.assign(callbackUrl);
+            // Fixed: Standardized transition avoids unhandled mounting loop state collapses
+            startTransition(() => {
+                router.push(callbackUrl);
+                router.refresh();
+            });
         } catch (error) {
             console.error("Credentials login system catch error:", error);
             setError("password", { type: "manual", message: "An unexpected error occurred." });
@@ -143,9 +151,9 @@ export default function LoginPageClient() {
                             <button
                                 type="submit"
                                 className="btn btn-primary mt-2 w-full border-0 bg-linear-to-r from-cyan-500 to-sky-500 text-white hover:from-cyan-400 hover:to-sky-400"
-                                disabled={isSubmitting}
+                                disabled={isSubmitting || isPending}
                             >
-                                {isSubmitting ? "Signing in..." : "Sign in"}
+                                {isSubmitting || isPending ? "Signing in..." : "Sign in"}
                             </button>
                         </form>
 
@@ -154,7 +162,7 @@ export default function LoginPageClient() {
                         <button
                             type="button"
                             onClick={handleGoogleSignIn}
-                            disabled={isSubmitting}
+                            disabled={isSubmitting || isPending}
                             className="btn btn-outline w-full border-white/15 bg-white/5 text-white hover:border-cyan-300 hover:bg-white/10 disabled:opacity-50"
                         >
                             Continue with Google
