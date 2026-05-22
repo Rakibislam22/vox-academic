@@ -19,7 +19,7 @@ export default function Navbar() {
     const displayName = session?.user?.name || session?.user?.email || 'Account';
     const initials = getInitials(session?.user?.name, session?.user?.email);
     const email = session?.user?.email || '';
-    const provider = (session?.user as any)?.provider || 'credentials';
+    const provider = (session && (session as unknown as { user?: { provider?: string } }).user?.provider) ?? 'credentials';
     const image = session?.user?.image || '';
 
     return (

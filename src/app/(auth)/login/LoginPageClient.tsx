@@ -2,17 +2,19 @@
 
 import { useEffect } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { signIn, useSession } from "next-auth/react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { loginSchema, type LoginInput } from "@/lib/validations/auth";
 
 export default function LoginPageClient() {
-    const router = useRouter();
     const searchParams = useSearchParams();
+    
+    // Dynamic callback resolution targeting dashboard base cleanly
     const callbackUrl = searchParams?.get("callbackUrl") || "/dashboard";
     const registered = searchParams?.get("registered") === "1";
+    
     const { status } = useSession();
 
     const {
@@ -28,30 +30,39 @@ export default function LoginPageClient() {
         },
     });
 
+    // Window-level interceptor: Redirects users immediately if an active authenticated session exists
     useEffect(() => {
         if (status === "authenticated") {
-            router.replace("/dashboard");
+            window.location.assign(callbackUrl);
         }
-    }, [router, status]);
+    }, [status, callbackUrl]);
 
     const onSubmit = async (values: LoginInput) => {
-        const result = await signIn("credentials", {
-            email: values.email,
-            password: values.password,
-            redirect: false,
-            callbackUrl,
-        });
+        try {
+            const result = await signIn("credentials", {
+                email: values.email,
+                password: values.password,
+                redirect: false, // Set to false to support custom client-side error handling
+            });
 
-        if (result?.error) {
-            setError("password", { type: "manual", message: "Invalid email or password" });
-            return;
+            if (result?.error) {
+                setError("password", { type: "manual", message: "Invalid email or password" });
+                return;
+            }
+
+            // Fix: Using .assign() bypasses immutability assignment restrictions while forcing a clean cache-free reload
+            window.location.assign(callbackUrl);
+        } catch (error) {
+            console.error("Credentials login system catch error:", error);
+            setError("password", { type: "manual", message: "An unexpected error occurred." });
         }
-
-        window.location.assign(result?.url || callbackUrl);
     };
 
-    const handleGoogleSignIn = () => {
-        void signIn("google", { callbackUrl });
+    const handleGoogleSignIn = async () => {
+        // Next-Auth internal routing engine natively completes data context sync and routes directly on success
+        await signIn("google", {
+            callbackUrl: callbackUrl.startsWith("http") ? callbackUrl : `${window.location.origin}${callbackUrl}`
+        });
     };
 
     return (
@@ -143,7 +154,8 @@ export default function LoginPageClient() {
                         <button
                             type="button"
                             onClick={handleGoogleSignIn}
-                            className="btn btn-outline w-full border-white/15 bg-white/5 text-white hover:border-cyan-300 hover:bg-white/10"
+                            disabled={isSubmitting}
+                            className="btn btn-outline w-full border-white/15 bg-white/5 text-white hover:border-cyan-300 hover:bg-white/10 disabled:opacity-50"
                         >
                             Continue with Google
                         </button>

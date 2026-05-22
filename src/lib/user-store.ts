@@ -21,10 +21,6 @@ function normalizeEmail(email: string) {
     return email.trim().toLowerCase();
 }
 
-function userId(user: { _id: { toString(): string } }) {
-    return user._id.toString();
-}
-
 export async function findUserByEmail(email: string) {
     await connectToDatabase();
     return User.findOne({ email: normalizeEmail(email) }).exec();

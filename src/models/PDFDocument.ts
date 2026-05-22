@@ -6,7 +6,7 @@ export interface IPDFDocument extends Document {
     url?: string;
     owner: Types.ObjectId;
     pages?: number;
-    metadata?: Record<string, any>;
+    metadata?: Record<string, unknown>;
     createdAt: Date;
 }
 

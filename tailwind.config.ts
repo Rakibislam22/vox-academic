@@ -1,4 +1,9 @@
 import type { Config } from "tailwindcss";
+import daisyuiModule from 'daisyui';
+
+type TailwindPlugin = NonNullable<Config['plugins']>[number];
+
+const daisyui = daisyuiModule as unknown as TailwindPlugin;
 
 const config: Config = {
     content: [
@@ -35,7 +40,7 @@ const config: Config = {
             },
         },
     },
-    plugins: [require("daisyui")],
+    plugins: [daisyui],
 };
 
 export default config;
