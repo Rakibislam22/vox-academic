@@ -33,7 +33,7 @@ export default function LoginPageClient() {
     // Window-level interceptor: Redirects users immediately if an active authenticated session exists
     useEffect(() => {
         if (status === "authenticated") {
-            window.location.href = callbackUrl;
+            window.location.assign(callbackUrl);
         }
     }, [status, callbackUrl]);
 
@@ -50,9 +50,10 @@ export default function LoginPageClient() {
                 return;
             }
 
-            // Fix: Using window.location.href forces a clean target frame load with real-time auth states
-            window.location.href = callbackUrl;
+            // Fix: Using .assign() bypasses immutability assignment restrictions while forcing a clean cache-free reload
+            window.location.assign(callbackUrl);
         } catch (error) {
+            console.error("Credentials login system catch error:", error);
             setError("password", { type: "manual", message: "An unexpected error occurred." });
         }
     };
