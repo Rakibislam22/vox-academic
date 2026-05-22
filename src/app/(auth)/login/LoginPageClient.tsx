@@ -28,18 +28,18 @@ export default function LoginPageClient() {
         },
     });
 
+    // Fixed: Checks and applies the dynamic searchParam callbackUrl cleanly upon active session confirmation
     useEffect(() => {
         if (status === "authenticated") {
-            router.replace("/dashboard");
+            router.replace(callbackUrl);
         }
-    }, [router, status]);
+    }, [router, status, callbackUrl]);
 
     const onSubmit = async (values: LoginInput) => {
         const result = await signIn("credentials", {
             email: values.email,
             password: values.password,
-            redirect: false,
-            callbackUrl,
+            redirect: false, // Keeps Next-Auth from doing a full-page hard reload
         });
 
         if (result?.error) {
@@ -47,7 +47,9 @@ export default function LoginPageClient() {
             return;
         }
 
-        window.location.assign(result?.url || callbackUrl);
+        // Force Next.js router to navigate to your callbackUrl or dashboard immediately
+        router.push(callbackUrl);
+        router.refresh(); // Forces Next.js to re-verify server components with the new cookie session
     };
 
     const handleGoogleSignIn = () => {

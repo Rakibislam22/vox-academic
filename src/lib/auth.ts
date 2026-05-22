@@ -58,33 +58,43 @@ export const authConfig: NextAuthConfig = {
                     clientId: googleClientId,
                     clientSecret: googleClientSecret,
                 }),
-            ]
+              ]
             : []),
     ],
     callbacks: {
         async signIn({ user, account, profile }) {
             try {
-                await syncUserProfile({
-                    id: user.id,
-                    name: user.name,
-                    email: user.email,
-                    image: user.image,
-                    provider: account?.provider ?? 'credentials',
-                });
-
-                if (profile && account?.provider === 'google') {
+                // Fixed: Conditional routing ensuring syncUserProfile runs only once per login event
+                if (account?.provider === 'google' && profile) {
+                    const googleProfile = profile as GoogleProfile;
                     await syncUserProfile({
-                        name: (profile as GoogleProfile).name ?? user.name,
-                        email: (profile as GoogleProfile).email ?? user.email,
-                        image: (profile as GoogleProfile).picture ?? user.image,
+                        id: user.id,
+                        name: googleProfile.name ?? user.name,
+                        email: googleProfile.email ?? user.email,
+                        image: googleProfile.picture ?? user.image,
                         provider: 'google',
                     });
+                } else {
+                    await syncUserProfile({
+                        id: user.id,
+                        name: user.name,
+                        email: user.email,
+                        image: user.image,
+                        provider: account?.provider ?? 'credentials',
+                    });
                 }
+                return true;
             } catch (error) {
                 console.error('User sync failed during sign-in:', error);
+                // Return false if database operation fails completely to avoid stealth lockouts
+                return false; 
             }
-
-            return true;
+        },
+        // Fixed: Explicit redirect loop management targeting /dashboard safely
+        async redirect({ url, baseUrl }) {
+            if (url.startsWith("/")) return `${baseUrl}${url}`;
+            else if (new URL(url).origin === baseUrl) return url;
+            return `${baseUrl}/dashboard`;
         },
         async jwt({ token, user, account }) {
             const appToken = token as AppToken;
