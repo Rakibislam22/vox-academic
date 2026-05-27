@@ -41,27 +41,33 @@ export const authConfig: NextAuthConfig = {
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) return null;
 
-        const user = await verifyCredentialsUser(
-          String(credentials.email),
-          String(credentials.password),
-        );
-        if (!user) return null;
+        try {
+          const user = await verifyCredentialsUser(
+            String(credentials.email),
+            String(credentials.password),
+          );
+          if (!user) return null;
 
-        return {
-          id: 'id' in user ? user.id : user._id.toString(),
-          name: user.name,
-          email: user.email,
-          image: 'image' in user ? user.image : undefined,
-        };
+          return {
+            id: 'id' in user ? user.id : user._id.toString(),
+            name: user.name,
+            email: user.email,
+            image: 'image' in user ? user.image : undefined,
+          };
+        } catch (error) {
+          console.error('Credentials authorize failed:', error);
+          // Return null to surface a credentials error to the client instead of a server 500 route error.
+          return null;
+        }
       },
     }),
     ...(googleClientId && googleClientSecret
       ? [
-          GoogleProvider({
-            clientId: googleClientId,
-            clientSecret: googleClientSecret,
-          }),
-        ]
+        GoogleProvider({
+          clientId: googleClientId,
+          clientSecret: googleClientSecret,
+        }),
+      ]
       : []),
   ],
   callbacks: {
