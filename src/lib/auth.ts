@@ -63,11 +63,11 @@ export const authConfig: NextAuthConfig = {
     }),
     ...(googleClientId && googleClientSecret
       ? [
-        GoogleProvider({
-          clientId: googleClientId,
-          clientSecret: googleClientSecret,
-        }),
-      ]
+          GoogleProvider({
+            clientId: googleClientId,
+            clientSecret: googleClientSecret,
+          }),
+        ]
       : []),
   ],
   callbacks: {
