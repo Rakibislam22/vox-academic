@@ -1,22 +1,20 @@
-import Cta from "@/components/Cta";
-import FeatureSe from "@/components/FeatureSe";
-import Footer from "@/components/Footer";
-import HowItWorks from "@/components/HowItWorks";
-import Interactive from "@/components/Interactive";
-import Stats from "@/components/Stats";
-import UseCase from "@/components/UseCase";
-import VideoSlider from "@/components/VideoSlider";
-import Link from "next/link";
+import Cta from '@/components/Cta';
+import FeatureSe from '@/components/FeatureSe';
+import Footer from '@/components/Footer';
+import HowItWorks from '@/components/HowItWorks';
+import Interactive from '@/components/Interactive';
+import Stats from '@/components/Stats';
+import UseCase from '@/components/UseCase';
+import VideoSlider from '@/components/VideoSlider';
+import Link from 'next/link';
 
 export default function Home() {
-
   return (
     <>
       {/* Hero Section */}
       <section className="relative min-h-screen flex items-center justify-left overflow-hidden px-4 sm:px-6 lg:px-8">
         {/* Background Videos Stack */}
         <div className="absolute inset-0 z-base overflow-hidden bg-black">
-
           <VideoSlider />
 
           <div className="video-mask-bottom" />
@@ -38,20 +36,16 @@ export default function Home() {
           </h1>
 
           <p className="text-xl text-white/80 mb-12 max-w-2xl leading-relaxed">
-            Vox Academic converts academic papers into intelligent audio experiences. Study
-            smarter with AI-powered insights, interactive summaries, and adaptive playback
-            controls — all designed for deep focus and active learning.
+            Vox Academic converts academic papers into intelligent audio experiences. Study smarter
+            with AI-powered insights, interactive summaries, and adaptive playback controls — all
+            designed for deep focus and active learning.
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 mb-16">
             <Link href="/dashboard">
-              <button className="btn-primary px-8 py-4 text-lg">
-                Start Learning Now
-              </button>
+              <button className="btn-primary px-8 py-4 text-lg">Start Learning Now</button>
             </Link>
-            <button className="btn-secondary px-8 py-4 text-lg">
-              Watch Demo
-            </button>
+            <button className="btn-secondary px-8 py-4 text-lg">Watch Demo</button>
           </div>
         </div>
       </section>
@@ -64,7 +58,6 @@ export default function Home() {
       {/* How It Works Section */}
       <section className="relative py-20 px-4 sm:px-6 lg:px-8">
         <HowItWorks />
-
       </section>
 
       {/* Interactive Features Section */}
@@ -88,7 +81,6 @@ export default function Home() {
       </section>
 
       <Footer />
-
     </>
   );
 }
