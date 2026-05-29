@@ -13,7 +13,7 @@ export default function DashboardPage() {
   const [playbackSpeed, setPlaybackSpeed] = useState(1);
   const [selectedVoice, setSelectedVoice] = useState('Aura - Natural');
   const [activeMobileTab, setActiveMobileTab] = useState<'pdf' | 'insights'>('pdf');
-  
+
   // New state to check if a document is uploaded/selected
   const [hasFile, setHasFile] = useState(false);
 
@@ -24,7 +24,6 @@ export default function DashboardPage() {
 
   return (
     <div className="flex h-full min-h-0 flex-col overflow-y-auto overflow-x-hidden lg:overflow-hidden">
-      
       {/* Mobile tabs: Show ONLY if file is present */}
       {hasFile && (
         <div className="px-4 pt-4 sm:px-6 sm:pt-6 lg:hidden">
@@ -56,12 +55,13 @@ export default function DashboardPage() {
       )}
 
       {/* Main content area */}
-      <div className={`flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-4 pt-0 sm:p-6 sm:pt-0 ${
-        hasFile 
-          ? 'lg:grid lg:grid-cols-[1.22fr_1fr] lg:gap-6 lg:overflow-hidden' 
-          : 'lg:flex lg:justify-start' // When no file, take initial alignment
-      }`}>
-        
+      <div
+        className={`flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-4 pt-0 sm:p-6 sm:pt-0 ${
+          hasFile
+            ? 'lg:grid lg:grid-cols-[1.22fr_1fr] lg:gap-6 lg:overflow-hidden'
+            : 'lg:flex lg:justify-start' // When no file, take initial alignment
+        }`}
+      >
         {/* INITIAL STATE (No file loaded) */}
         {!hasFile ? (
           <div className="w-full lg:w-[55%] h-full transition-all duration-500 ease-in-out">

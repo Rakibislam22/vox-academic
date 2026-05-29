@@ -59,10 +59,14 @@ export default function EmptyUploadState({ onUploadSuccess }: EmptyUploadStatePr
       {/* Title block */}
       <div className="space-y-2">
         <h1 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">
-          Welcome to <span className="bg-gradient-to-r select-none from-blue-400 to-indigo-400 bg-clip-text text-transparent">Vox Academic</span>
+          Welcome to{' '}
+          <span className="bg-gradient-to-r select-none from-blue-400 to-indigo-400 bg-clip-text text-transparent">
+            Vox Academic
+          </span>
         </h1>
         <p className="text-sm text-slate-400">
-          Upload an academic paper or search the web to transform static text into an interactive audio experience.
+          Upload an academic paper or search the web to transform static text into an interactive
+          audio experience.
         </p>
       </div>
 
@@ -78,18 +82,16 @@ export default function EmptyUploadState({ onUploadSuccess }: EmptyUploadStatePr
       ) : (
         /* Action Options Setup */
         <div className="space-y-4">
-          
           {/* Option 1: PDF Drop Zone */}
           <div
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
             onClick={() => fileInputRef.current?.click()}
-            className={`group relative flex flex-col items-center justify-center rounded-2xl border-2 border-dashed p-8 text-center backdrop-blur-xl cursor-pointer transition-all duration-300 min-h-[220px] ${
-              isDragging
+            className={`group relative flex flex-col items-center justify-center rounded-2xl border-2 border-dashed p-8 text-center backdrop-blur-xl cursor-pointer transition-all duration-300 min-h-[220px] ${isDragging
                 ? 'border-blue-500 bg-blue-500/10 shadow-[0_0_30px_rgba(59,130,246,0.2)]'
                 : 'border-white/10 bg-white/3 hover:border-white/20 hover:bg-white/5'
-            }`}
+              }`}
           >
             <input
               type="file"
@@ -98,14 +100,12 @@ export default function EmptyUploadState({ onUploadSuccess }: EmptyUploadStatePr
               accept="application/pdf"
               className="hidden"
             />
-            
+
             <div className="rounded-xl border border-white/10 bg-white/5 p-4 text-blue-400 transition-transform group-hover:scale-110 shadow-inner">
               <Upload className="h-6 w-6" />
             </div>
-            
-            <h3 className="mt-4 text-base font-semibold text-white">
-              Upload your PDF
-            </h3>
+
+            <h3 className="mt-4 text-base font-semibold text-white">Upload your PDF</h3>
             <p className="mt-1 text-xs text-slate-400">
               Drag & drop your academic paper here, or browse local files
             </p>
@@ -118,12 +118,14 @@ export default function EmptyUploadState({ onUploadSuccess }: EmptyUploadStatePr
           {/* Divider text separator */}
           <div className="relative flex py-2 items-center">
             <div className="flex-grow border-t border-white/5"></div>
-            <span className="flex-shrink mx-4 text-xs font-semibold text-slate-500 uppercase tracking-widest select-none">OR</span>
+            <span className="flex-shrink mx-4 text-xs font-semibold text-slate-500 uppercase tracking-widest select-none">
+              OR
+            </span>
             <div className="flex-grow border-t border-white/5"></div>
           </div>
 
           {/* Option 2: Dynamic Web Discovery (Browse over internet) */}
-          <form 
+          <form
             onSubmit={handleWebSearchSubmit}
             className="group rounded-2xl border border-white/10 bg-white/3 p-5 backdrop-blur-xl transition-all duration-300 hover:border-white/20 hover:bg-white/5"
           >
@@ -133,7 +135,9 @@ export default function EmptyUploadState({ onUploadSuccess }: EmptyUploadStatePr
               </div>
               <div>
                 <h4 className="text-sm font-semibold text-white">Browse over Internet</h4>
-                <p className="text-xs text-slate-400">Discover and extract from open-access web materials</p>
+                <p className="text-xs text-slate-400">
+                  Discover and extract from open-access web materials
+                </p>
               </div>
             </div>
 
@@ -154,7 +158,6 @@ export default function EmptyUploadState({ onUploadSuccess }: EmptyUploadStatePr
               </button>
             </div>
           </form>
-
         </div>
       )}
     </div>
