@@ -64,7 +64,7 @@ export default function DashboardPage() {
       >
         {/* INITIAL STATE (No file loaded) */}
         {!hasFile ? (
-          <div className="w-full lg:w-[55%] h-full transition-all duration-500 ease-in-out">
+          <div className="w-full h-full transition-all duration-500 ease-in-out">
             {/* Apnar upload component jekhane user local file and dynamic web discovery options pabe */}
             <EmptyUploadState onUploadSuccess={handleFileSelect} />
           </div>
