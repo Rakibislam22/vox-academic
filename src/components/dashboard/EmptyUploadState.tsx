@@ -88,10 +88,11 @@ export default function EmptyUploadState({ onUploadSuccess }: EmptyUploadStatePr
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
             onClick={() => fileInputRef.current?.click()}
-            className={`group relative flex flex-col items-center justify-center rounded-2xl border-2 border-dashed p-8 text-center backdrop-blur-xl cursor-pointer transition-all duration-300 min-h-[220px] ${isDragging
+            className={`group relative flex flex-col items-center justify-center rounded-2xl border-2 border-dashed p-8 text-center backdrop-blur-xl cursor-pointer transition-all duration-300 min-h-[220px] ${
+              isDragging
                 ? 'border-blue-500 bg-blue-500/10 shadow-[0_0_30px_rgba(59,130,246,0.2)]'
                 : 'border-white/10 bg-white/3 hover:border-white/20 hover:bg-white/5'
-              }`}
+            }`}
           >
             <input
               type="file"
