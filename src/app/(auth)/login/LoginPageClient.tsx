@@ -55,9 +55,16 @@ export default function LoginPageClient() {
         return;
       }
 
+      const destination = result?.url || callbackUrl;
+
+      if (destination.startsWith('http')) {
+        window.location.assign(destination);
+        return;
+      }
+
       // Fixed: Standardized transition avoids unhandled mounting loop state collapses
       startTransition(() => {
-        router.push(callbackUrl);
+        router.replace(destination);
         router.refresh();
       });
     } catch (error) {

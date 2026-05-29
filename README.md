@@ -35,6 +35,13 @@ The easiest way to deploy your Next.js app is to use the [Vercel Platform](https
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
 
+Production auth checklist for Vercel:
+
+- Set a stable `AUTH_SECRET` or `NEXTAUTH_SECRET` in the Vercel project settings.
+- Set `NEXTAUTH_URL` to the deployed app URL, for example `https://your-app.vercel.app`.
+- If you use Google sign-in, also add `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`.
+- Redeploy after updating environment variables so the auth cookies and middleware can use the same secret.
+
 ## CI/CD Pipeline
 
 This repository now includes a GitHub Actions workflow at [.github/workflows/ci-cd.yml](.github/workflows/ci-cd.yml) that does two things:
