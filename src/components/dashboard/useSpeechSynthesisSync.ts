@@ -92,10 +92,59 @@ function findWordIndexByCharIndex(tokens: SpeechToken[], charIndex: number) {
     return null;
 }
 
+function scoreVoice(voice: SpeechSynthesisVoice) {
+    const preferredNames = [
+        'Microsoft Aria Online (Natural) - English (United States)',
+        'Microsoft Andrew Online (Natural) - English (United States)',
+        'Microsoft Guy Online (Natural) - English (United States)',
+        'Google UK English Female',
+        'Google US English',
+        'Samantha',
+        'Victoria',
+        'Alex',
+        'Daniel',
+        'Karen',
+    ];
+
+    const preferredIndex = preferredNames.findIndex((name) => voice.name.toLowerCase().includes(name.toLowerCase()));
+    let score = 0;
+
+    if (preferredIndex >= 0) {
+        score += 100 - preferredIndex;
+    }
+
+    if (voice.default) {
+        score += 20;
+    }
+
+    if (voice.localService) {
+        score += 10;
+    }
+
+    if (/^en(-|_)/i.test(voice.lang)) {
+        score += 15;
+    }
+
+    if (/female|woman|natural|premium|neural/i.test(voice.name)) {
+        score += 10;
+    }
+
+    return score;
+}
+
+function selectPremiumVoice(voices: SpeechSynthesisVoice[]) {
+    if (!voices.length) {
+        return null;
+    }
+
+    return [...voices].sort((left, right) => scoreVoice(right) - scoreVoice(left))[0] ?? null;
+}
+
 export function useSpeechSynthesisSync(cleanedTextForSpeech: string): SpeechSyncState {
     const [status, setStatus] = useState<SpeechStatus>('idle');
     const [rate, setRateState] = useState(1);
     const [activeWordIndex, setActiveWordIndex] = useState(-1);
+    const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
 
     const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
     const utteranceSequenceRef = useRef(0);
@@ -107,6 +156,27 @@ export function useSpeechSynthesisSync(cleanedTextForSpeech: string): SpeechSync
 
     const isSupported = typeof window !== 'undefined' && 'speechSynthesis' in window;
     const tokens = useMemo(() => tokenizeSpeechText(cleanedTextForSpeech), [cleanedTextForSpeech]);
+
+    useEffect(() => {
+        if (!isSupported) {
+            return;
+        }
+
+        const syncVoices = () => {
+            const availableVoices = window.speechSynthesis.getVoices();
+
+            if (availableVoices.length > 0) {
+                setVoices(availableVoices);
+            }
+        };
+
+        syncVoices();
+        window.speechSynthesis.addEventListener('voiceschanged', syncVoices);
+
+        return () => {
+            window.speechSynthesis.removeEventListener('voiceschanged', syncVoices);
+        };
+    }, [isSupported]);
 
     useEffect(() => {
         if (resetTimeoutRef.current !== null) {
@@ -205,7 +275,16 @@ export function useSpeechSynthesisSync(cleanedTextForSpeech: string): SpeechSync
             window.speechSynthesis.cancel();
 
             const utterance = new SpeechSynthesisUtterance(textToSpeak);
+            const selectedVoice = selectPremiumVoice(voices.length > 0 ? voices : window.speechSynthesis.getVoices());
+
             utterance.rate = rateRef.current;
+            utterance.pitch = 1;
+            utterance.volume = 1;
+
+            if (selectedVoice) {
+                utterance.voice = selectedVoice;
+                utterance.lang = selectedVoice.lang || 'en-US';
+            }
 
             utterance.onboundary = (event) => {
                 if (utteranceSequenceRef.current !== utteranceId || event.name !== 'word') {
@@ -245,7 +324,7 @@ export function useSpeechSynthesisSync(cleanedTextForSpeech: string): SpeechSync
             commitActiveWordIndex(safeWordIndex);
             window.speechSynthesis.speak(utterance);
         },
-        [cleanedTextForSpeech, commitActiveWordIndex, isSupported, tokens],
+        [cleanedTextForSpeech, commitActiveWordIndex, isSupported, tokens, voices],
     );
 
     const pause = useCallback(() => {

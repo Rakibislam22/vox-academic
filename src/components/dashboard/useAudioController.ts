@@ -1,0 +1,175 @@
+import { useState, useRef, useEffect, useCallback } from 'react';
+import { useSpeechSynthesisSync } from './useSpeechSynthesisSync';
+
+export function useAudioController(text: string) {
+    const [playbackMode, setPlaybackMode] = useState<'stream' | 'browser'>('stream');
+    const [isLoadingAudio, setIsLoadingAudio] = useState(false);
+    const [isPlaying, setIsPlaying] = useState(false);
+    const [playbackSpeed, setPlaybackSpeed] = useState(1);
+    const [currentTime, setCurrentTime] = useState(0);
+    const [duration, setDuration] = useState(0);
+    const [showFallbackToast, setShowFallbackToast] = useState(false);
+
+    const audioRef = useRef<HTMLAudioElement | null>(null);
+    const toastTimeoutRef = useRef<number | null>(null);
+
+    // Your existing hook automatically generates the SpeechSynthesisUtterance internally
+    const speechSync = useSpeechSynthesisSync(text);
+
+    // Reset the state whenever the text changes so users can attempt standard server-fetching again
+    useEffect(() => {
+        setPlaybackMode('stream');
+        setIsPlaying(false);
+        setCurrentTime(0);
+        setDuration(0);
+        if (audioRef.current) {
+            audioRef.current.pause();
+            audioRef.current.src = '';
+        }
+        setShowFallbackToast(false);
+        if (toastTimeoutRef.current) {
+            window.clearTimeout(toastTimeoutRef.current);
+        }
+    }, [text]);
+
+    // Synchronize browser speech status back to our main isPlaying state for the UI
+    useEffect(() => {
+        if (playbackMode === 'browser') {
+            setIsPlaying(speechSync.status === 'playing');
+        }
+    }, [speechSync.status, playbackMode]);
+
+    const onPlayPause = useCallback(async () => {
+        // 1. Browser Speech Synthesis Fallback Mode
+        if (playbackMode === 'browser') {
+            speechSync.toggle();
+            return;
+        }
+
+        // 2. HTML5 Audio Stream Mode - Pause
+        if (isPlaying) {
+            audioRef.current?.pause();
+            setIsPlaying(false);
+            return;
+        }
+
+        // 3. HTML5 Audio Stream Mode - Resume existing audio
+        if (audioRef.current?.src) {
+            audioRef.current.play();
+            setIsPlaying(true);
+            return;
+        }
+
+        // 4. Initial Fetch
+        setIsLoadingAudio(true);
+        try {
+            const response = await fetch('/api/generate-audio', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ text }),
+            });
+
+            const contentType = response.headers.get('content-type') || '';
+
+            // Check if server is requesting fallback to browser
+            if (contentType.includes('application/json')) {
+                const data = await response.json();
+                if (data.fallbackToBrowser) {
+                    // Immediately cancel any HTML5 <audio> source loading
+                    if (audioRef.current) {
+                        audioRef.current.pause();
+                        audioRef.current.src = '';
+                    }
+
+                    setPlaybackMode('browser');
+                    speechSync.setRate(playbackSpeed); // Transfer the current speed natively
+                    speechSync.play(); // Immediately initialize the SpeechSynthesisUtterance workflow
+                    setIsPlaying(true); // Aggressively bind UI to playing state
+
+                    setShowFallbackToast(true);
+                    if (toastTimeoutRef.current) window.clearTimeout(toastTimeoutRef.current);
+                    toastTimeoutRef.current = window.setTimeout(() => {
+                        setShowFallbackToast(false);
+                    }, 4000);
+
+                    return; // Skip HTML5 <audio> setup entirely
+                }
+            }
+
+            // Otherwise, process HTML5 Audio stream
+            const blob = await response.blob();
+            const url = URL.createObjectURL(blob);
+
+            if (!audioRef.current) {
+                const audio = new Audio(url);
+                audio.addEventListener('timeupdate', () => setCurrentTime(audio.currentTime));
+                audio.addEventListener('loadedmetadata', () => setDuration(audio.duration));
+                audio.addEventListener('ended', () => setIsPlaying(false));
+                audioRef.current = audio;
+            } else {
+                audioRef.current.src = url;
+            }
+
+            audioRef.current.playbackRate = playbackSpeed;
+            audioRef.current.play();
+            setIsPlaying(true);
+            setPlaybackMode('stream');
+        } catch (error) {
+            console.error('Audio generation failed:', error);
+        } finally {
+            setIsLoadingAudio(false);
+        }
+    }, [playbackMode, isPlaying, text, speechSync, playbackSpeed]);
+
+    const onStop = useCallback(() => {
+        if (playbackMode === 'browser') {
+            speechSync.stop();
+        } else if (audioRef.current) {
+            audioRef.current.pause();
+            audioRef.current.currentTime = 0;
+            setIsPlaying(false);
+            setCurrentTime(0);
+        }
+    }, [playbackMode, speechSync]);
+
+    const onSpeedChange = useCallback((speed: number) => {
+        setPlaybackSpeed(speed);
+        if (playbackMode === 'browser') {
+            speechSync.setRate(speed); // Your underlying hook natively handles restarting the utterance with the new rate
+        } else if (audioRef.current) {
+            audioRef.current.playbackRate = speed;
+        }
+    }, [playbackMode, speechSync]);
+
+    const onSeek = useCallback((time: number) => {
+        // Note: ControlBar dynamically disables scrub/seek for 'browser' mode (`!canScrub`), so we only need to handle stream
+        if (playbackMode === 'stream' && audioRef.current) {
+            audioRef.current.currentTime = time;
+            setCurrentTime(time);
+        }
+    }, [playbackMode]);
+
+    const onSkipBackward = useCallback(() => {
+        onSeek(Math.max(0, currentTime - 10));
+    }, [currentTime, onSeek]);
+
+    const onSkipForward = useCallback(() => {
+        onSeek(Math.min(duration, currentTime + 10));
+    }, [currentTime, duration, onSeek]);
+
+    return {
+        playbackMode,
+        isLoadingAudio,
+        isPlaying,
+        playbackSpeed,
+        currentTime,
+        duration,
+        onPlayPause,
+        onStop,
+        onSpeedChange,
+        onSeek,
+        onSkipBackward,
+        onSkipForward,
+        showFallbackToast,
+    };
+}
