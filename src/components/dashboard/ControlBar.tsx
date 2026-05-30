@@ -44,12 +44,21 @@ export default function ControlBar({
   const canControl = hasText && (!isLoadingAudio || playbackMode === 'browser');
   const canScrub = hasText && !isLoadingAudio;
 
-  const playbackStateLabel = isLoadingAudio ? 'Buffering' : isPlaying ? 'Playing' : hasText ? 'Paused' : 'No text';
+  const playbackStateLabel = isLoadingAudio
+    ? 'Buffering'
+    : isPlaying
+      ? 'Playing'
+      : hasText
+        ? 'Paused'
+        : 'No text';
 
   return (
     <>
       {showFallbackToast && (
-        <div className="pointer-events-none fixed left-1/2 top-4 -translate-x-1/2" style={{ zIndex: 60 }}>
+        <div
+          className="pointer-events-none fixed left-1/2 top-4 -translate-x-1/2"
+          style={{ zIndex: 60 }}
+        >
           <div className="flex items-center gap-2 rounded-full border border-amber-400/20 bg-amber-500/12 px-4 py-2 text-sm text-white shadow-[0_12px_32px_rgba(0,0,0,0.22)] backdrop-blur-lg animate-pulse">
             <span className="text-base text-amber-300">⚠️</span>
             <span>Network error. Falling back to offline browser voice.</span>
@@ -70,9 +79,7 @@ export default function ControlBar({
                       {playbackMode === 'browser' ? 'Browser' : 'Stream'}
                     </span>
                   </div>
-                  <div className="mt-0.5 text-[11px] text-slate-500">
-                    {playbackStateLabel}
-                  </div>
+                  <div className="mt-0.5 text-[11px] text-slate-500">{playbackStateLabel}</div>
                 </div>
 
                 <span className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 font-medium uppercase tracking-[0.16em] text-slate-300">
@@ -112,7 +119,9 @@ export default function ControlBar({
                 type="button"
                 onClick={onPlayPause}
                 disabled={!canControl}
-                aria-label={isLoadingAudio ? 'Loading audio' : isPlaying ? 'Pause audio' : 'Play audio'}
+                aria-label={
+                  isLoadingAudio ? 'Loading audio' : isPlaying ? 'Pause audio' : 'Play audio'
+                }
                 className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-[#1a8cff] p-3 text-white shadow-[0_0_20px_rgba(26,140,255,0.4)] transition-transform duration-200 hover:scale-105 active:scale-90 disabled:cursor-not-allowed disabled:opacity-40"
               >
                 {isPlaying ? (
@@ -136,7 +145,10 @@ export default function ControlBar({
             <div className="flex min-w-0 flex-col items-stretch gap-1.5 lg:items-end">
               <div className="flex w-full items-center justify-end gap-2 text-[10px] uppercase tracking-[0.16em] text-slate-400">
                 <span>Speed</span>
-                <div className="flex items-center justify-end rounded-full border border-white/10 bg-white/5 px-2.5 py-1" style={{ minWidth: '112px' }}>
+                <div
+                  className="flex items-center justify-end rounded-full border border-white/10 bg-white/5 px-2.5 py-1"
+                  style={{ minWidth: '112px' }}
+                >
                   <input
                     type="range"
                     min="0.5"

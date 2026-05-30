@@ -7,12 +7,7 @@ import {
   type PDFPageProxy,
   type RenderTask,
 } from 'pdfjs-dist/legacy/build/pdf.mjs';
-import {
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-} from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { usePDFContext } from './PDFContext';
 
 GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs';
@@ -21,14 +16,21 @@ type PdfTextContent = Awaited<ReturnType<PDFPageProxy['getTextContent']>>;
 
 function normalizeTextFromContent(textContent: PdfTextContent) {
   return textContent.items
-    .map((item) => (item && typeof item === 'object' && 'str' in item ? String((item as { str?: unknown }).str ?? '') : ''))
+    .map((item) =>
+      item && typeof item === 'object' && 'str' in item
+        ? String((item as { str?: unknown }).str ?? '')
+        : '',
+    )
     .join(' ')
     .replace(/\s+/g, ' ')
     .trim();
 }
 
 function sanitizePageText(rawText: string) {
-  return rawText.replace(/\u00a0/g, ' ').replace(/\s+/g, ' ').trim();
+  return rawText
+    .replace(/\u00a0/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 function useElementWidth<T extends HTMLElement>() {
@@ -97,14 +99,17 @@ export default function PDFPanel() {
   const hasPdfFile = Boolean(uploadedPdfFile);
   const hasSpeechText = cleanedTextForSpeech.trim().length > 0;
 
-  const goToPage = useCallback((nextPage: number) => {
-    if (!totalPages) {
-      return;
-    }
+  const goToPage = useCallback(
+    (nextPage: number) => {
+      if (!totalPages) {
+        return;
+      }
 
-    const safePage = Math.max(1, Math.min(nextPage, totalPages));
-    setCurrentPage(safePage);
-  }, [totalPages]);
+      const safePage = Math.max(1, Math.min(nextPage, totalPages));
+      setCurrentPage(safePage);
+    },
+    [totalPages],
+  );
 
   const handlePreviousPage = useCallback(() => {
     goToPage(currentPage - 1);
@@ -163,7 +168,9 @@ export default function PDFPanel() {
       } catch (error) {
         if (!cancelled) {
           console.error('Failed to load PDF document:', error);
-          setDocumentError(error instanceof Error ? error.message : 'Failed to load the PDF document.');
+          setDocumentError(
+            error instanceof Error ? error.message : 'Failed to load the PDF document.',
+          );
         }
       } finally {
         if (!cancelled) {
@@ -203,15 +210,18 @@ export default function PDFPanel() {
           pdfDocument.getPage(currentPage),
           pageTextCacheRef.current.has(currentPage)
             ? Promise.resolve(null)
-            : pdfDocument.getPage(currentPage).then((pageProxy: PDFPageProxy) => pageProxy.getTextContent()),
+            : pdfDocument
+                .getPage(currentPage)
+                .then((pageProxy: PDFPageProxy) => pageProxy.getTextContent()),
         ]);
 
         if (cancelled) {
           return;
         }
 
-        const pageText = pageTextCacheRef.current.get(currentPage)
-          ?? sanitizePageText(textContent ? normalizeTextFromContent(textContent) : '');
+        const pageText =
+          pageTextCacheRef.current.get(currentPage) ??
+          sanitizePageText(textContent ? normalizeTextFromContent(textContent) : '');
 
         if (!pageTextCacheRef.current.has(currentPage)) {
           pageTextCacheRef.current.set(currentPage, pageText);
@@ -227,7 +237,8 @@ export default function PDFPanel() {
         }
 
         const baseViewport = page.getViewport({ scale: 1 });
-        const availableWidth = viewportWidth > 0 ? Math.max(viewportWidth - 2, 0) : baseViewport.width;
+        const availableWidth =
+          viewportWidth > 0 ? Math.max(viewportWidth - 2, 0) : baseViewport.width;
         const responsiveScale = Math.min(2.25, Math.max(0.75, availableWidth / baseViewport.width));
         const outputScale = window.devicePixelRatio || 1;
         const viewport = page.getViewport({ scale: responsiveScale * outputScale });
@@ -286,11 +297,19 @@ export default function PDFPanel() {
           </div>
 
           <div className="flex flex-wrap items-center gap-2 text-xs text-slate-400">
-            <span>{speech.words.length ? `${speech.words.length} spoken words` : 'Awaiting synced page text'}</span>
+            <span>
+              {speech.words.length
+                ? `${speech.words.length} spoken words`
+                : 'Awaiting synced page text'}
+            </span>
             <span className="h-1 w-1 rounded-full bg-white/20" />
             <span>{speech.status === 'playing' ? 'Live sync active' : 'Ready for playback'}</span>
             <span className="h-1 w-1 rounded-full bg-white/20" />
-            <span>{currentSentence.trim().length ? 'Current page text synced' : 'No page text available yet'}</span>
+            <span>
+              {currentSentence.trim().length
+                ? 'Current page text synced'
+                : 'No page text available yet'}
+            </span>
           </div>
         </div>
       </div>
@@ -321,12 +340,19 @@ export default function PDFPanel() {
 
           <div className="flex items-center gap-2">
             <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-medium text-slate-300 shadow-inner">
-              {isDocumentLoading ? 'Loading document' : isPageRendering ? 'Rendering page' : 'Viewer ready'}
+              {isDocumentLoading
+                ? 'Loading document'
+                : isPageRendering
+                  ? 'Rendering page'
+                  : 'Viewer ready'}
             </span>
           </div>
         </div>
 
-        <div ref={viewportRef} className="flex-1 min-h-0 w-full overflow-y-auto rounded-xl bg-slate-950/40 p-4 border border-white/5 flex justify-center items-start">
+        <div
+          ref={viewportRef}
+          className="flex-1 min-h-0 w-full overflow-y-auto rounded-xl bg-slate-950/40 p-4 border border-white/5 flex justify-center items-start"
+        >
           <div className="relative flex w-full min-h-full justify-center">
             <div className="relative w-full max-w-full overflow-hidden rounded-2xl border border-white/10 bg-[#08111f]/80 p-3 shadow-[0_0_0_1px_rgba(255,255,255,0.03),0_24px_80px_rgba(0,0,0,0.4)] backdrop-blur-xl sm:p-4">
               {documentError && (
@@ -340,8 +366,8 @@ export default function PDFPanel() {
                   <div className="max-w-md">
                     <p className="text-lg font-semibold text-white">No PDF selected yet</p>
                     <p className="mt-2 text-sm leading-6 text-slate-400">
-                      Upload a PDF from the left panel to render pages, extract the visible page text,
-                      and sync the current page into the audio pipeline.
+                      Upload a PDF from the left panel to render pages, extract the visible page
+                      text, and sync the current page into the audio pipeline.
                     </p>
                   </div>
                 </div>
@@ -377,7 +403,9 @@ export default function PDFPanel() {
                 : 'Ready to sync'}
             </span>
             <span>
-              {hasSpeechText ? 'Visible page text is pushed to the audio system' : 'Waiting for synced page text'}
+              {hasSpeechText
+                ? 'Visible page text is pushed to the audio system'
+                : 'Waiting for synced page text'}
             </span>
           </div>
         </div>

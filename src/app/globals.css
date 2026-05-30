@@ -296,16 +296,17 @@ body::after {
   left: 0;
   right: 0;
   height: 50vh;
-  background: linear-gradient(to bottom,
-      transparent 0%,
-      rgba(5, 11, 24, 0.5) 40%,
-      rgba(5, 11, 24, 1) 100%);
+  background: linear-gradient(
+    to bottom,
+    transparent 0%,
+    rgba(5, 11, 24, 0.5) 40%,
+    rgba(5, 11, 24, 1) 100%
+  );
   pointer-events: none;
   z-index: 25;
 }
 
 @keyframes pulse-soft {
-
   0%,
   100% {
     opacity: 1;
@@ -341,7 +342,6 @@ body::after {
 }
 
 @keyframes breathe {
-
   0%,
   100% {
     transform: scaleY(0.95);
@@ -355,7 +355,6 @@ body::after {
 }
 
 @keyframes glow-pulse {
-
   0%,
   100% {
     box-shadow: 0 0 0 0 rgba(26, 140, 255, 0.7);

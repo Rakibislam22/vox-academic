@@ -44,7 +44,10 @@ export default function Sidebar({ isDrawer = false, onClose, session: sessionPro
     <aside className={baseClasses}>
       <div className="flex-1 min-h-0 overflow-y-auto space-y-8 scrollbar-custom">
         <div className="relative flex h-16 items-center justify-center border-b border-white/10 pb-4 shrink-0">
-          <Link href="/" className="absolute left-1/2 -translate-x-1/2 text-xl font-bold accent-primary">
+          <Link
+            href="/"
+            className="absolute left-1/2 -translate-x-1/2 text-xl font-bold accent-primary"
+          >
             Vox
           </Link>
           {isDrawer && (
@@ -63,10 +66,11 @@ export default function Sidebar({ isDrawer = false, onClose, session: sessionPro
             <button
               key={item.id}
               onClick={() => setActiveNav(item.id)}
-              className={`flex w-full items-center gap-3 rounded-lg px-4 py-3 text-label transition-transform active:scale-95 whitespace-nowrap ${activeNav === item.id
-                ? 'border border-electric-blue/40 bg-electric-blue/20 text-electric-blue'
-                : 'text-white/70 hover:bg-navy-dark hover:text-white/90'
-                }`}
+              className={`flex w-full items-center gap-3 rounded-lg px-4 py-3 text-label transition-transform active:scale-95 whitespace-nowrap ${
+                activeNav === item.id
+                  ? 'border border-electric-blue/40 bg-electric-blue/20 text-electric-blue'
+                  : 'text-white/70 hover:bg-navy-dark hover:text-white/90'
+              }`}
             >
               <span className="text-lg">{item.icon}</span>
               <span className="flex-1 truncate text-left">{item.label}</span>

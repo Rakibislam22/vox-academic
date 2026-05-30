@@ -57,11 +57,19 @@ function deriveDocumentTitle(file: File, extractedText: string) {
     }
   }
 
-  return file.name.replace(/\.pdf$/i, '').replace(/[-_]+/g, ' ').trim() || 'Uploaded PDF';
+  return (
+    file.name
+      .replace(/\.pdf$/i, '')
+      .replace(/[-_]+/g, ' ')
+      .trim() || 'Uploaded PDF'
+  );
 }
 
 function deriveDocumentSummary(extractedText: string) {
-  const cleanedText = extractedText.replace(/^Page \d+:\s*/gm, '').replace(/\s+/g, ' ').trim();
+  const cleanedText = extractedText
+    .replace(/^Page \d+:\s*/gm, '')
+    .replace(/\s+/g, ' ')
+    .trim();
 
   if (!cleanedText) {
     return 'No readable text was extracted from this PDF.';
@@ -144,7 +152,9 @@ export default function EmptyUploadState({ onUploadSuccess }: EmptyUploadStatePr
   const handleWebSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchQuery.trim()) {
-      setErrorMessage('Web discovery is not wired to extraction yet. Upload a PDF to sync real text.');
+      setErrorMessage(
+        'Web discovery is not wired to extraction yet. Upload a PDF to sync real text.',
+      );
     }
   };
 
@@ -182,10 +192,11 @@ export default function EmptyUploadState({ onUploadSuccess }: EmptyUploadStatePr
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
             onClick={() => fileInputRef.current?.click()}
-            className={`group relative flex flex-col items-center justify-center rounded-2xl border-2 border-dashed p-8 text-center backdrop-blur-xl cursor-pointer transition-all duration-300 min-h-55 ${isDragging
-              ? 'border-blue-500 bg-blue-500/10 shadow-[0_0_30px_rgba(59,130,246,0.2)]'
-              : 'border-white/10 bg-white/3 hover:border-white/20 hover:bg-white/5'
-              }`}
+            className={`group relative flex flex-col items-center justify-center rounded-2xl border-2 border-dashed p-8 text-center backdrop-blur-xl cursor-pointer transition-all duration-300 min-h-55 ${
+              isDragging
+                ? 'border-blue-500 bg-blue-500/10 shadow-[0_0_30px_rgba(59,130,246,0.2)]'
+                : 'border-white/10 bg-white/3 hover:border-white/20 hover:bg-white/5'
+            }`}
           >
             <input
               type="file"

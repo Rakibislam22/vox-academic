@@ -1,4 +1,4 @@
-# Vox Academic 
+# Vox Academic
 
 Vox Academic is a PDF-first academic reading workspace that converts uploaded documents into a structured study experience. The app combines a responsive canvas-based PDF viewer, page text extraction, AI-generated summaries, and audio playback so readers can move between scanning, listening, and revising without leaving the dashboard.
 
