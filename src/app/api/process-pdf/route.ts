@@ -1,4 +1,3 @@
-import { GoogleGenAI } from '@google/genai';
 import { NextResponse } from 'next/server';
 import {
     processPdfRequestSchema,
@@ -8,44 +7,9 @@ import {
 
 export const runtime = 'nodejs';
 
-const GEMINI_MODEL = 'gemini-1.5-flash';
-
-const geminiResponseJsonSchema = {
-    type: 'object',
-    additionalProperties: false,
-    required: ['summary', 'keyVocabulary', 'cleanedTextForSpeech'],
-    properties: {
-        summary: {
-            type: 'string',
-            description: 'A concise summary of the provided multi-page source text.',
-        },
-        keyVocabulary: {
-            type: 'array',
-            description: 'Important terms from the source text with short definitions.',
-            items: {
-                type: 'object',
-                additionalProperties: false,
-                required: ['word', 'definition'],
-                properties: {
-                    word: {
-                        type: 'string',
-                        description: 'A key term extracted from the source text.',
-                    },
-                    definition: {
-                        type: 'string',
-                        description: 'A short definition written for a reader or listener.',
-                    },
-                },
-                propertyOrdering: ['word', 'definition'],
-            },
-        },
-        cleanedTextForSpeech: {
-            type: 'string',
-            description: 'A cleaned, fluent version of the source text that is ready for speech.',
-        },
-    },
-    propertyOrdering: ['summary', 'keyVocabulary', 'cleanedTextForSpeech'],
-} as const;
+const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
+const GROQ_MODEL = process.env.GROQ_MODEL?.trim() || 'llama-3.3-70b-versatile';
+const REQUEST_TIMEOUT_MS = 45_000;
 
 function buildSourceText(payload: ProcessPdfRequest) {
     const sections: string[] = [];
@@ -82,28 +46,30 @@ function buildSourceText(payload: ProcessPdfRequest) {
 
 function buildSystemPrompt() {
     return [
-        'You are an extraction and cleanup engine for academic and web-discovered source text.',
-        'Return only a valid JSON object that exactly matches this schema:',
+        'You are an academic summarization engine for PDF text and web-discovered content.',
+        'Return only valid JSON that matches exactly this schema:',
         '{"summary":string,"keyVocabulary":[{"word":string,"definition":string}],"cleanedTextForSpeech":string}',
         'Rules:',
-        '- Output JSON only. Do not wrap the response in markdown, code fences, or commentary.',
-        '- Do not add any extra keys.',
-        '- Keep the summary concise, accurate, and grounded in the source text.',
-        '- keyVocabulary must contain the most important technical or domain-specific terms, with short plain-language definitions.',
-        '- cleanedTextForSpeech must read naturally aloud, preserve meaning, remove page headers, page numbers, broken hyphenation, repeated noise, and OCR artifacts, and merge multi-page fragments into a smooth flow.',
-        '- Do not invent facts, citations, or terminology not supported by the input.',
+        '- Output JSON only. Do not include markdown fences, explanations, or extra keys.',
+        '- summary must be concise, factual, and grounded in the provided text.',
+        '- keyVocabulary must capture important domain terms with short plain-language definitions.',
+        '- cleanedTextForSpeech must be fluent, natural to read aloud, and remove headers, footers, page numbers, broken hyphenation, and OCR noise.',
+        '- If the input is too sparse, preserve meaning without inventing unsupported facts.',
     ].join('\n');
 }
 
-function getStatusCode(error: unknown) {
-    if (!error || typeof error !== 'object') {
-        return undefined;
-    }
-
-    const candidate = error as { status?: unknown; code?: unknown; response?: { status?: unknown } };
-    const status = candidate.status ?? candidate.code ?? candidate.response?.status;
-
-    return typeof status === 'number' ? status : undefined;
+function buildJsonError(status: number, message: string, details?: Record<string, unknown>) {
+    return NextResponse.json(
+        {
+            ok: false,
+            error: {
+                status,
+                message,
+                ...(details ?? {}),
+            },
+        },
+        { status },
+    );
 }
 
 function getRetryAfterSeconds(error: unknown) {
@@ -126,7 +92,8 @@ function getRetryAfterSeconds(error: unknown) {
         return Number.isFinite(parsed) ? parsed : undefined;
     }
 
-    const retryAfterHeader = candidate.response?.headers?.get?.('retry-after') ?? candidate.headers?.get?.('retry-after');
+    const retryAfterHeader =
+        candidate.response?.headers?.get?.('retry-after') ?? candidate.headers?.get?.('retry-after');
     if (!retryAfterHeader) {
         return undefined;
     }
@@ -135,116 +102,141 @@ function getRetryAfterSeconds(error: unknown) {
     return Number.isFinite(parsed) ? parsed : undefined;
 }
 
-function isRateLimitError(error: unknown) {
-    const status = getStatusCode(error);
+function getGroqApiKey() {
+    const apiKey = process.env.GROQ_API_KEY;
 
-    if (status === 429) {
-        return true;
+    if (!apiKey || !apiKey.trim()) {
+        return null;
     }
 
-    if (error instanceof Error && /rate limit|quota|429/i.test(error.message)) {
-        return true;
-    }
-
-    if (error && typeof error === 'object') {
-        const message = 'message' in error ? String((error as { message?: unknown }).message ?? '') : '';
-        return /rate limit|quota|429/i.test(message);
-    }
-
-    return false;
+    return apiKey.trim();
 }
 
-function getGeminiClient() {
-    const apiKey = process.env.GEMINI_API_KEY;
+function extractJsonFromText(text: string) {
+    const trimmed = text.trim();
+    const fencedMatch = trimmed.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
 
-    if (!apiKey) {
-        throw new Error('GEMINI_API_KEY is not configured');
+    if (fencedMatch?.[1]) {
+        return fencedMatch[1].trim();
     }
 
-    return new GoogleGenAI({ apiKey });
+    const firstBrace = trimmed.indexOf('{');
+    const lastBrace = trimmed.lastIndexOf('}');
+
+    if (firstBrace >= 0 && lastBrace > firstBrace) {
+        return trimmed.slice(firstBrace, lastBrace + 1);
+    }
+
+    return trimmed;
+}
+
+async function readUpstreamError(response: Response) {
+    const rawText = await response.text();
+    const trimmed = rawText.trim();
+
+    if (!trimmed) {
+        return undefined;
+    }
+
+    try {
+        const parsed = JSON.parse(trimmed) as Record<string, unknown>;
+        const detail =
+            typeof parsed.error === 'string'
+                ? parsed.error
+                : typeof parsed.message === 'string'
+                    ? parsed.message
+                    : typeof parsed.detail === 'string'
+                        ? parsed.detail
+                        : undefined;
+
+        return detail ?? trimmed;
+    } catch {
+        return trimmed;
+    }
 }
 
 export async function POST(request: Request) {
+    const apiKey = getGroqApiKey();
+
+    if (!apiKey) {
+        return buildJsonError(
+            500,
+            'Server configuration error: missing GROQ_API_KEY',
+            { code: 'MISSING_GROQ_API_KEY' },
+        );
+    }
+
     let body: unknown;
 
     try {
         body = await request.json();
     } catch {
-        return NextResponse.json({ message: 'Invalid JSON payload' }, { status: 400 });
+        return buildJsonError(400, 'Invalid JSON payload', { code: 'INVALID_JSON' });
     }
 
     const parsedInput = processPdfRequestSchema.safeParse(body);
 
     if (!parsedInput.success) {
-        return NextResponse.json(
+        return buildJsonError(
+            400,
+            'Invalid PDF processing payload',
             {
-                message: 'Invalid PDF processing payload',
+                code: 'INVALID_PDF_PROCESSING_PAYLOAD',
                 issues: parsedInput.error.flatten(),
             },
-            { status: 400 },
         );
     }
 
     const prompt = buildSourceText(parsedInput.data);
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
 
     try {
-        const client = getGeminiClient();
-        const response = await client.models.generateContent({
-            model: GEMINI_MODEL,
-            contents: prompt,
-            config: {
-                systemInstruction: buildSystemPrompt(),
-                temperature: 0.2,
-                maxOutputTokens: 4096,
-                responseMimeType: 'application/json',
-                responseJsonSchema: geminiResponseJsonSchema,
+        const response = await fetch(GROQ_API_URL, {
+            method: 'POST',
+            signal: controller.signal,
+            cache: 'no-store',
+            headers: {
+                Authorization: `Bearer ${apiKey}`,
+                'Content-Type': 'application/json',
             },
+            body: JSON.stringify({
+                model: GROQ_MODEL,
+                temperature: 0.2,
+                max_tokens: 2048,
+                top_p: 0.9,
+                stream: false,
+                response_format: { type: 'json_object' },
+                messages: [
+                    {
+                        role: 'system',
+                        content: buildSystemPrompt(),
+                    },
+                    {
+                        role: 'user',
+                        content: prompt,
+                    },
+                ],
+            }),
         });
 
-        const rawText = response.text?.trim();
+        const retryAfterSeconds = getRetryAfterSeconds(response.headers);
 
-        if (!rawText) {
-            return NextResponse.json(
-                { message: 'Gemini returned an empty response' },
-                { status: 502 },
-            );
-        }
+        if (response.status === 429) {
+            const upstreamMessage = await readUpstreamError(response);
 
-        let parsedJson: unknown;
-
-        try {
-            parsedJson = JSON.parse(rawText);
-        } catch {
-            return NextResponse.json(
-                {
-                    message: 'Gemini returned invalid JSON',
-                    rawText,
-                },
-                { status: 502 },
-            );
-        }
-
-        const parsedOutput = processPdfResponseSchema.safeParse(parsedJson);
-
-        if (!parsedOutput.success) {
-            return NextResponse.json(
-                {
-                    message: 'Gemini output did not match the expected schema',
-                    issues: parsedOutput.error.flatten(),
-                },
-                { status: 502 },
-            );
-        }
-
-        return NextResponse.json(parsedOutput.data, { status: 200 });
-    } catch (error) {
-        if (isRateLimitError(error)) {
-            const retryAfterSeconds = getRetryAfterSeconds(error);
+            console.error('Groq rate limit response:', upstreamMessage || '[empty body]');
 
             return NextResponse.json(
                 {
-                    message: 'Gemini rate limit exceeded. Please retry shortly.',
-                    retryAfterSeconds,
+                    ok: false,
+                    error: {
+                        status: 429,
+                        code: 'GROQ_RATE_LIMIT',
+                        message: 'Groq rate limit exceeded. Please retry shortly.',
+                        retryAfterSeconds,
+                        details: upstreamMessage || undefined,
+                    },
                 },
                 {
                     status: 429,
@@ -256,13 +248,74 @@ export async function POST(request: Request) {
             );
         }
 
+        if (!response.ok) {
+            const upstreamMessage = await readUpstreamError(response);
+
+            console.error('Groq upstream error:', {
+                status: response.status,
+                body: upstreamMessage || '[empty body]',
+            });
+
+            return buildJsonError(502, 'Groq upstream request failed', {
+                code: 'GROQ_UPSTREAM_ERROR',
+                upstreamStatus: response.status,
+                upstreamBody: upstreamMessage || undefined,
+                retryAfterSeconds,
+            });
+        }
+
+        const responseJson = (await response.json()) as {
+            choices?: Array<{
+                message?: {
+                    content?: string | null;
+                };
+            }>;
+        };
+
+        const rawContent = responseJson.choices?.[0]?.message?.content?.trim();
+
+        if (!rawContent) {
+            return buildJsonError(502, 'Groq returned an empty response', {
+                code: 'EMPTY_GROQ_RESPONSE',
+            });
+        }
+
+        const jsonText = extractJsonFromText(rawContent);
+        let parsedJson: unknown;
+
+        try {
+            parsedJson = JSON.parse(jsonText);
+        } catch {
+            return buildJsonError(502, 'Groq returned invalid JSON', {
+                code: 'INVALID_GROQ_JSON',
+                rawText: rawContent,
+            });
+        }
+
+        const parsedOutput = processPdfResponseSchema.safeParse(parsedJson);
+
+        if (!parsedOutput.success) {
+            return buildJsonError(502, 'Groq output did not match the expected schema', {
+                code: 'INVALID_GROQ_SCHEMA',
+                issues: parsedOutput.error.flatten(),
+                rawText: rawContent,
+            });
+        }
+
+        return NextResponse.json(parsedOutput.data, { status: 200 });
+    } catch (error) {
+        if (error instanceof Error && error.name === 'AbortError') {
+            return buildJsonError(504, 'Groq request timed out', {
+                code: 'GROQ_TIMEOUT',
+            });
+        }
+
         console.error('process-pdf error:', error);
 
-        return NextResponse.json(
-            {
-                message: 'Unable to process document',
-            },
-            { status: 500 },
-        );
+        return buildJsonError(500, 'Unable to process document', {
+            code: 'UNHANDLED_GROQ_ERROR',
+        });
+    } finally {
+        clearTimeout(timeout);
     }
 }

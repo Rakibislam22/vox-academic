@@ -1,0 +1,197 @@
+import { NextResponse } from 'next/server';
+import { z } from 'zod';
+
+export const runtime = 'nodejs';
+
+const HUGGING_FACE_MODEL = process.env.HUGGINGFACE_TTS_MODEL?.trim() || 'facebook/mms-tts-eng';
+const HUGGING_FACE_ENDPOINT = process.env.HUGGINGFACE_TTS_ENDPOINT?.trim();
+const HUGGING_FACE_URL =
+    HUGGING_FACE_ENDPOINT || `https://api-inference.huggingface.co/models/${HUGGING_FACE_MODEL}`;
+const REQUEST_TIMEOUT_MS = 45_000;
+
+const generateAudioRequestSchema = z
+    .object({
+        text: z
+            .string()
+            .trim()
+            .min(1, 'Text is required')
+            .max(12_000, 'Text is too long')
+            .transform((value) => value.replace(/\s+/g, ' ').trim()),
+    })
+    .strict();
+
+type GenerateAudioRequest = z.infer<typeof generateAudioRequestSchema>;
+
+function getRetryAfterSeconds(headers: Headers) {
+    const retryAfter = headers.get('retry-after');
+    if (!retryAfter) {
+        return undefined;
+    }
+
+    const parsed = Number(retryAfter);
+    return Number.isFinite(parsed) ? parsed : undefined;
+}
+
+function buildJsonError(status: number, message: string, details?: Record<string, unknown>) {
+    return NextResponse.json(
+        {
+            ok: false,
+            error: {
+                status,
+                message,
+                ...(details ?? {}),
+            },
+        },
+        { status },
+    );
+}
+
+function getHuggingFaceToken() {
+    const token = process.env.HUGGINGFACE_API_TOKEN;
+
+    if (!token || !token.trim()) {
+        return null;
+    }
+
+    return token.trim();
+}
+
+async function parseRequestBody(request: Request): Promise<GenerateAudioRequest | null> {
+    let rawBody: unknown;
+
+    try {
+        rawBody = await request.json();
+    } catch {
+        return null;
+    }
+
+    const parsed = generateAudioRequestSchema.safeParse(rawBody);
+    return parsed.success ? parsed.data : null;
+}
+
+export async function POST(request: Request) {
+    const token = getHuggingFaceToken();
+
+    if (!token) {
+        return buildJsonError(
+            500,
+            'Server configuration error: missing HUGGINGFACE_API_TOKEN',
+            { code: 'MISSING_HUGGINGFACE_API_TOKEN' },
+        );
+    }
+
+    const parsedBody = await parseRequestBody(request);
+
+    if (!parsedBody) {
+        return buildJsonError(
+            400,
+            'Invalid request body. Expected JSON payload: { text: string }',
+            { code: 'INVALID_REQUEST_BODY' },
+        );
+    }
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+
+    try {
+        const upstreamResponse = await fetch(HUGGING_FACE_URL, {
+            method: 'POST',
+            headers: {
+                Authorization: `Bearer ${token}`,
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ text: parsedBody.text }),
+            signal: controller.signal,
+            cache: 'no-store',
+        });
+
+        const retryAfterSeconds = getRetryAfterSeconds(upstreamResponse.headers);
+
+        if (upstreamResponse.status === 429) {
+            const upstreamRateLimitMessage = await upstreamResponse.text();
+
+            console.error('Hugging Face 429 response:', upstreamRateLimitMessage || '[empty body]');
+
+            return NextResponse.json(
+                {
+                    ok: false,
+                    error: {
+                        status: 429,
+                        code: 'HUGGING_FACE_RATE_LIMIT',
+                        message: 'Hugging Face rate limit exceeded. Please retry shortly.',
+                        retryAfterSeconds,
+                        details: upstreamRateLimitMessage || undefined,
+                    },
+                },
+                {
+                    status: 429,
+                    headers:
+                        typeof retryAfterSeconds === 'number'
+                            ? { 'Retry-After': String(retryAfterSeconds) }
+                            : undefined,
+                },
+            );
+        }
+
+        if (!upstreamResponse.ok) {
+            const upstreamMessage = await upstreamResponse.text();
+
+            console.error('Hugging Face upstream error:', {
+                status: upstreamResponse.status,
+                body: upstreamMessage || '[empty body]',
+            });
+
+            return buildJsonError(
+                502,
+                'Hugging Face upstream request failed',
+                {
+                    code: 'HUGGING_FACE_UPSTREAM_ERROR',
+                    upstreamStatus: upstreamResponse.status,
+                    upstreamBody: upstreamMessage || undefined,
+                    retryAfterSeconds,
+                },
+            );
+        }
+
+        const contentType = upstreamResponse.headers.get('content-type') || 'audio/mpeg';
+        const audioBuffer = await upstreamResponse.arrayBuffer();
+        const audioBytes = new Uint8Array(audioBuffer);
+
+        if (audioBytes.byteLength === 0) {
+            return buildJsonError(
+                502,
+                'Hugging Face returned an empty audio payload',
+                { code: 'EMPTY_AUDIO_PAYLOAD' },
+            );
+        }
+
+        const contentLength = upstreamResponse.headers.get('content-length');
+
+        return new NextResponse(audioBytes, {
+            status: 200,
+            headers: {
+                'Content-Type': contentType,
+                ...(contentLength ? { 'Content-Length': contentLength } : {}),
+                'Cache-Control': 'no-store',
+            },
+        });
+    } catch (error) {
+        if (error instanceof Error && error.name === 'AbortError') {
+            return buildJsonError(
+                504,
+                'Hugging Face request timed out',
+                { code: 'HUGGING_FACE_TIMEOUT' },
+            );
+        }
+
+        console.error('generate-audio error:', error);
+
+        return buildJsonError(
+            500,
+            'Unable to generate audio right now',
+            { code: 'GENERATE_AUDIO_UNHANDLED_ERROR' },
+        );
+    } finally {
+        clearTimeout(timeout);
+    }
+}
