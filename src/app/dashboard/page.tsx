@@ -2,18 +2,25 @@
 
 import dynamic from 'next/dynamic';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import SummaryPanel from '@/components/dashboard/SummaryPanel';
-import ControlBar from '@/components/dashboard/ControlBar';
-import EmptyUploadState from '@/components/dashboard/EmptyUploadState'; // Initial layout custom component
 import { usePDFContext } from '@/components/dashboard/PDFContext';
 
 const PDFPanel = dynamic(() => import('@/components/dashboard/PDFPanel'), {
   ssr: false,
 });
+const SummaryPanel = dynamic(() => import('@/components/dashboard/SummaryPanel'), {
+  ssr: false,
+});
+const ControlBar = dynamic(() => import('@/components/dashboard/ControlBar'), {
+  ssr: false,
+});
+const EmptyUploadState = dynamic(() => import('@/components/dashboard/EmptyUploadState'), {
+  ssr: false,
+});
 
 export default function DashboardPage() {
-  const { cleanedTextForSpeech } = usePDFContext();
+  const { cleanedTextForSpeech, speech } = usePDFContext();
   const [activeMobileTab, setActiveMobileTab] = useState<'pdf' | 'insights'>('pdf');
+  const [playbackMode, setPlaybackMode] = useState<'stream' | 'browser'>('stream');
 
   // New state to check if a document is uploaded/selected
   const [hasFile, setHasFile] = useState(false);
@@ -94,7 +101,8 @@ export default function DashboardPage() {
     }
 
     audioRef.current.playbackRate = playbackSpeed;
-  }, [playbackSpeed]);
+    speech.setRate(playbackSpeed);
+  }, [playbackSpeed, speech]);
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -108,9 +116,31 @@ export default function DashboardPage() {
     setDuration(0);
     audio.currentTime = 0;
     loadedTextRef.current = '';
-  }, [textForAudio]);
+    setPlaybackMode('stream');
+    speech.stop();
+  }, [speech, textForAudio]);
 
-  const ensureAudioSource = useCallback(async () => {
+  const activateBrowserFallback = useCallback(() => {
+    const audio = audioRef.current;
+
+    if (audio) {
+      audio.pause();
+      audio.removeAttribute('src');
+      audio.load();
+    }
+
+    setPlaybackMode('browser');
+    setDuration(0);
+    setCurrentTime(0);
+    setIsPlaying(false);
+    setIsLoadingAudio(false);
+    loadedTextRef.current = '';
+
+    speech.stop();
+    speech.play();
+  }, [speech]);
+
+  const ensureAudioSource = useCallback(async (): Promise<'stream' | 'browser' | false> => {
     const audio = audioRef.current;
 
     if (!audio || !textForAudio) {
@@ -118,7 +148,7 @@ export default function DashboardPage() {
     }
 
     if (loadedTextRef.current === textForAudio && audio.src) {
-      return true;
+      return 'stream';
     }
 
     const cachedUrl = audioUrlCacheRef.current.get(textForAudio);
@@ -126,7 +156,7 @@ export default function DashboardPage() {
       audio.src = cachedUrl;
       audio.load();
       loadedTextRef.current = textForAudio;
-      return true;
+      return 'stream';
     }
 
     setIsLoadingAudio(true);
@@ -140,6 +170,19 @@ export default function DashboardPage() {
         body: JSON.stringify({ text: textForAudio }),
       });
 
+      const responseContentType = response.headers.get('content-type') || '';
+
+      if (responseContentType.includes('application/json')) {
+        const responseBody = (await response.json().catch(() => null)) as
+          | { fallbackToBrowser?: boolean }
+          | null;
+
+        if (responseBody?.fallbackToBrowser) {
+          activateBrowserFallback();
+          return 'browser';
+        }
+      }
+
       if (!response.ok) {
         throw new Error(`Audio generation failed with status ${response.status}`);
       }
@@ -151,17 +194,33 @@ export default function DashboardPage() {
       audio.src = objectUrl;
       audio.load();
       loadedTextRef.current = textForAudio;
-      return true;
+      setPlaybackMode('stream');
+      return 'stream';
     } catch (error) {
       console.error('Failed to load audio stream:', error);
       return false;
     } finally {
       setIsLoadingAudio(false);
     }
-  }, [textForAudio]);
+  }, [activateBrowserFallback, textForAudio]);
 
   const handlePlayPause = useCallback(async () => {
     const audio = audioRef.current;
+
+    if (playbackMode === 'browser') {
+      if (speech.status === 'playing') {
+        speech.pause();
+        return;
+      }
+
+      if (speech.status === 'paused') {
+        speech.play();
+        return;
+      }
+
+      speech.play();
+      return;
+    }
 
     if (!audio) {
       return;
@@ -176,8 +235,12 @@ export default function DashboardPage() {
       return;
     }
 
-    const hasSource = await ensureAudioSource();
-    if (!hasSource) {
+    const sourceMode = await ensureAudioSource();
+    if (!sourceMode) {
+      return;
+    }
+
+    if (sourceMode === 'browser') {
       return;
     }
 
@@ -186,9 +249,15 @@ export default function DashboardPage() {
     } catch (error) {
       console.error('Audio play failed:', error);
     }
-  }, [ensureAudioSource, isPlaying, textForAudio]);
+  }, [ensureAudioSource, isPlaying, playbackMode, speech, textForAudio]);
 
   const handleStop = useCallback(() => {
+    if (playbackMode === 'browser') {
+      speech.stop();
+      setIsPlaying(false);
+      return;
+    }
+
     const audio = audioRef.current;
     if (!audio) {
       return;
@@ -198,7 +267,7 @@ export default function DashboardPage() {
     audio.currentTime = 0;
     setCurrentTime(0);
     setIsPlaying(false);
-  }, []);
+  }, [playbackMode, speech]);
 
   const handleSeek = useCallback((nextTime: number) => {
     const audio = audioRef.current;
@@ -256,12 +325,12 @@ export default function DashboardPage() {
       <div
         className={`flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-4 pt-0 sm:p-6 sm:pt-0 ${hasFile
           ? 'lg:grid lg:grid-cols-[1.22fr_1fr] lg:gap-6 lg:overflow-hidden'
-          : 'lg:flex lg:justify-start' // When no file, take initial alignment
+          : 'flex items-center justify-center lg:overflow-hidden'
           }`}
       >
         {/* INITIAL STATE (No file loaded) */}
         {!hasFile ? (
-          <div className="w-full h-full transition-all duration-500 ease-in-out">
+          <div className="w-full lg:w-[55%] transition-all duration-500 ease-in-out">
             {/* Apnar upload component jekhane user local file and dynamic web discovery options pabe */}
             <EmptyUploadState onUploadSuccess={handleFileSelect} />
           </div>
@@ -289,11 +358,12 @@ export default function DashboardPage() {
       {/* Control Bar: Only displays or becomes active when file exists */}
       {hasFile && (
         <ControlBar
-          isPlaying={isPlaying}
+          isPlaying={playbackMode === 'browser' ? speech.status === 'playing' : isPlaying}
           isLoadingAudio={isLoadingAudio}
           currentTime={currentTime}
           duration={duration}
           playbackSpeed={playbackSpeed}
+          playbackMode={playbackMode}
           hasText={Boolean(textForAudio)}
           onPlayPause={handlePlayPause}
           onStop={handleStop}
