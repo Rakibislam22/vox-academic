@@ -6,12 +6,10 @@ import {
   type PDFDocumentProxy,
   type PDFPageProxy,
   type RenderTask,
-  type TextContent,
-} from 'pdfjs-dist/build/pdf.mjs';
+} from 'pdfjs-dist/legacy/build/pdf.mjs';
 import {
   useCallback,
   useEffect,
-  useMemo,
   useRef,
   useState,
 } from 'react';
@@ -19,9 +17,11 @@ import { usePDFContext } from './PDFContext';
 
 GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs';
 
-function normalizeTextFromContent(textContent: TextContent) {
+type PdfTextContent = Awaited<ReturnType<PDFPageProxy['getTextContent']>>;
+
+function normalizeTextFromContent(textContent: PdfTextContent) {
   return textContent.items
-    .map((item) => ('str' in item ? item.str : ''))
+    .map((item) => (item && typeof item === 'object' && 'str' in item ? String((item as { str?: unknown }).str ?? '') : ''))
     .join(' ')
     .replace(/\s+/g, ' ')
     .trim();
@@ -76,7 +76,6 @@ export default function PDFPanel() {
   const {
     cleanedTextForSpeech,
     currentSentence,
-    documentTitle,
     speech,
     uploadedPdfFile,
     setCleanedTextForSpeech,
@@ -93,7 +92,6 @@ export default function PDFPanel() {
   const [totalPages, setTotalPages] = useState(0);
   const [isDocumentLoading, setIsDocumentLoading] = useState(false);
   const [isPageRendering, setIsPageRendering] = useState(false);
-  const [isTextProcessing, setIsTextProcessing] = useState(false);
   const [documentError, setDocumentError] = useState('');
 
   const hasPdfFile = Boolean(uploadedPdfFile);
@@ -119,20 +117,22 @@ export default function PDFPanel() {
   useEffect(() => {
     let cancelled = false;
 
-    setDocumentError('');
-    setIsDocumentLoading(false);
-    setIsPageRendering(false);
-    setIsTextProcessing(false);
-    setCurrentPage(1);
-    setTotalPages(0);
-    pageTextCacheRef.current.clear();
+    queueMicrotask(() => {
+      if (cancelled) {
+        return;
+      }
+
+      setDocumentError('');
+      setIsPageRendering(false);
+      setCurrentPage(1);
+      setTotalPages(0);
+      pageTextCacheRef.current.clear();
+    });
 
     const previousDocument = documentRef.current;
     documentRef.current = null;
 
-    if (previousDocument) {
-      void previousDocument.destroy();
-    }
+    void previousDocument;
 
     if (!uploadedPdfFile) {
       return () => {
@@ -140,7 +140,11 @@ export default function PDFPanel() {
       };
     }
 
-    setIsDocumentLoading(true);
+    queueMicrotask(() => {
+      if (!cancelled) {
+        setIsDocumentLoading(true);
+      }
+    });
 
     const loadDocument = async () => {
       try {
@@ -149,7 +153,7 @@ export default function PDFPanel() {
         const pdfDocument = await loadingTask.promise;
 
         if (cancelled) {
-          await pdfDocument.destroy();
+          void pdfDocument;
           return;
         }
 
@@ -187,7 +191,6 @@ export default function PDFPanel() {
 
     const renderCurrentPage = async () => {
       setIsPageRendering(true);
-      setIsTextProcessing(true);
       setDocumentError('');
 
       if (renderTaskRef.current) {
@@ -200,7 +203,7 @@ export default function PDFPanel() {
           pdfDocument.getPage(currentPage),
           pageTextCacheRef.current.has(currentPage)
             ? Promise.resolve(null)
-            : pdfDocument.getPage(currentPage).then((pageProxy) => pageProxy.getTextContent()),
+            : pdfDocument.getPage(currentPage).then((pageProxy: PDFPageProxy) => pageProxy.getTextContent()),
         ]);
 
         if (cancelled) {
@@ -234,7 +237,7 @@ export default function PDFPanel() {
         canvas.style.width = `${Math.floor(viewport.width / outputScale)}px`;
         canvas.style.height = `${Math.floor(viewport.height / outputScale)}px`;
 
-        const renderTask = page.render({ canvasContext: context, viewport });
+        const renderTask = page.render({ canvasContext: context, canvas, viewport });
         renderTaskRef.current = renderTask;
 
         await renderTask.promise;
@@ -248,7 +251,6 @@ export default function PDFPanel() {
       } finally {
         if (!cancelled) {
           setIsPageRendering(false);
-          setIsTextProcessing(false);
         }
       }
     };
