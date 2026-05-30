@@ -57,6 +57,24 @@ function getHuggingFaceToken() {
     return token.trim();
 }
 
+function isNetworkFetchFailure(error: unknown) {
+    if (!(error instanceof Error)) {
+        return false;
+    }
+
+    const message = `${error.name}: ${error.message}`.toLowerCase();
+    const cause = error.cause as { code?: string } | undefined;
+
+    return (
+        message.includes('fetch failed') ||
+        message.includes('enotfound') ||
+        cause?.code === 'ENOTFOUND' ||
+        cause?.code === 'EAI_AGAIN' ||
+        cause?.code === 'ECONNRESET' ||
+        String(error).toLowerCase().includes('enotfound')
+    );
+}
+
 async function parseRequestBody(request: Request): Promise<GenerateAudioRequest | null> {
     let rawBody: unknown;
 
@@ -202,6 +220,14 @@ export async function POST(request: Request) {
                 'Hugging Face request timed out',
                 { code: 'HUGGING_FACE_TIMEOUT' },
             );
+        }
+
+        // 🧠 TERMINAL CLEANER FIX BOUNDARY
+        if (isNetworkFetchFailure(error)) {
+            // console.error() দিয়ে পুরো অবজেক্ট পাস করার পরিবর্তে শুধু ১ লাইনের ক্লিন ওয়ার্নিং দেওয়া হলো
+            console.warn('⚠️  Hugging Face offline (DNS/Network). Serving instant browser fallback.');
+
+            return NextResponse.json({ fallbackToBrowser: true }, { status: 200 });
         }
 
         console.error('generate-audio error:', error);
