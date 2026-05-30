@@ -1,107 +1,414 @@
 'use client';
 
+import {
+  GlobalWorkerOptions,
+  getDocument,
+  type PDFDocumentProxy,
+  type PDFPageProxy,
+  type RenderTask,
+} from 'pdfjs-dist/legacy/build/pdf.mjs';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { usePDFContext } from './PDFContext';
 
+GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs';
+
+type PdfTextContent = Awaited<ReturnType<PDFPageProxy['getTextContent']>>;
+
+function normalizeTextFromContent(textContent: PdfTextContent) {
+  return textContent.items
+    .map((item) =>
+      item && typeof item === 'object' && 'str' in item
+        ? String((item as { str?: unknown }).str ?? '')
+        : '',
+    )
+    .join(' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function sanitizePageText(rawText: string) {
+  return rawText
+    .replace(/\u00a0/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function useElementWidth<T extends HTMLElement>() {
+  const elementRef = useRef<T | null>(null);
+  const [width, setWidth] = useState(0);
+
+  useEffect(() => {
+    const element = elementRef.current;
+
+    if (!element || typeof ResizeObserver === 'undefined') {
+      return;
+    }
+
+    let frame = 0;
+    const observer = new ResizeObserver((entries) => {
+      const nextWidth = entries[0]?.contentRect.width ?? 0;
+
+      if (frame) {
+        window.cancelAnimationFrame(frame);
+      }
+
+      frame = window.requestAnimationFrame(() => {
+        setWidth(nextWidth);
+        frame = 0;
+      });
+    });
+
+    observer.observe(element);
+
+    setWidth(element.getBoundingClientRect().width);
+
+    return () => {
+      observer.disconnect();
+
+      if (frame) {
+        window.cancelAnimationFrame(frame);
+      }
+    };
+  }, []);
+
+  return { elementRef, width };
+}
+
 export default function PDFPanel() {
-  const { currentSentence, highlightedWord, setHighlightedWord } = usePDFContext();
+  const {
+    cleanedTextForSpeech,
+    currentSentence,
+    speech,
+    uploadedPdfFile,
+    setCleanedTextForSpeech,
+    setCurrentSentence,
+  } = usePDFContext();
 
-  // Mock function to simulate scanning animation
-  const highlightWords = currentSentence.split(' ').map((word) => {
-    const cleanWord = word.replace(/[.,!?;:]/g, '');
-    const isHighlighted = cleanWord.toUpperCase() === highlightedWord;
+  const { elementRef: viewportRef, width: viewportWidth } = useElementWidth<HTMLDivElement>();
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const documentRef = useRef<PDFDocumentProxy | null>(null);
+  const renderTaskRef = useRef<RenderTask | null>(null);
+  const pageTextCacheRef = useRef<Map<number, string>>(new Map());
 
-    return (
-      <span key={word} className="mr-1">
-        {isHighlighted ? (
-          <span
-            className="bg-electric-blue/60 px-1 py-0.5 rounded animate-pulse-soft"
-            onClick={() =>
-              setHighlightedWord(
-                highlightedWord === cleanWord.toUpperCase() ? '' : cleanWord.toUpperCase(),
-              )
-            }
-          >
-            {word}
-          </span>
-        ) : (
-          <span className="hover:bg-electric-blue/20 px-1 py-0.5 rounded cursor-pointer transition-smooth">
-            {word}
-          </span>
-        )}
-      </span>
-    );
-  });
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(0);
+  const [isDocumentLoading, setIsDocumentLoading] = useState(false);
+  const [isPageRendering, setIsPageRendering] = useState(false);
+  const [documentError, setDocumentError] = useState('');
+
+  const hasPdfFile = Boolean(uploadedPdfFile);
+  const hasSpeechText = cleanedTextForSpeech.trim().length > 0;
+
+  const goToPage = useCallback(
+    (nextPage: number) => {
+      if (!totalPages) {
+        return;
+      }
+
+      const safePage = Math.max(1, Math.min(nextPage, totalPages));
+      setCurrentPage(safePage);
+    },
+    [totalPages],
+  );
+
+  const handlePreviousPage = useCallback(() => {
+    goToPage(currentPage - 1);
+  }, [currentPage, goToPage]);
+
+  const handleNextPage = useCallback(() => {
+    goToPage(currentPage + 1);
+  }, [currentPage, goToPage]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    queueMicrotask(() => {
+      if (cancelled) {
+        return;
+      }
+
+      setDocumentError('');
+      setIsPageRendering(false);
+      setCurrentPage(1);
+      setTotalPages(0);
+      pageTextCacheRef.current.clear();
+    });
+
+    const previousDocument = documentRef.current;
+    documentRef.current = null;
+
+    void previousDocument;
+
+    if (!uploadedPdfFile) {
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    queueMicrotask(() => {
+      if (!cancelled) {
+        setIsDocumentLoading(true);
+      }
+    });
+
+    const loadDocument = async () => {
+      try {
+        const pdfData = await uploadedPdfFile.arrayBuffer();
+        const loadingTask = getDocument({ data: pdfData });
+        const pdfDocument = await loadingTask.promise;
+
+        if (cancelled) {
+          void pdfDocument;
+          return;
+        }
+
+        documentRef.current = pdfDocument;
+        setTotalPages(pdfDocument.numPages);
+        setCurrentPage(1);
+      } catch (error) {
+        if (!cancelled) {
+          console.error('Failed to load PDF document:', error);
+          setDocumentError(
+            error instanceof Error ? error.message : 'Failed to load the PDF document.',
+          );
+        }
+      } finally {
+        if (!cancelled) {
+          setIsDocumentLoading(false);
+        }
+      }
+    };
+
+    void loadDocument();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [uploadedPdfFile]);
+
+  useEffect(() => {
+    const pdfDocument = documentRef.current;
+    const canvas = canvasRef.current;
+
+    if (!pdfDocument || !canvas || currentPage < 1 || currentPage > totalPages) {
+      return undefined;
+    }
+
+    let cancelled = false;
+
+    const renderCurrentPage = async () => {
+      setIsPageRendering(true);
+      setDocumentError('');
+
+      if (renderTaskRef.current) {
+        renderTaskRef.current.cancel();
+        renderTaskRef.current = null;
+      }
+
+      try {
+        const [page, textContent] = await Promise.all([
+          pdfDocument.getPage(currentPage),
+          pageTextCacheRef.current.has(currentPage)
+            ? Promise.resolve(null)
+            : pdfDocument
+                .getPage(currentPage)
+                .then((pageProxy: PDFPageProxy) => pageProxy.getTextContent()),
+        ]);
+
+        if (cancelled) {
+          return;
+        }
+
+        const pageText =
+          pageTextCacheRef.current.get(currentPage) ??
+          sanitizePageText(textContent ? normalizeTextFromContent(textContent) : '');
+
+        if (!pageTextCacheRef.current.has(currentPage)) {
+          pageTextCacheRef.current.set(currentPage, pageText);
+        }
+
+        setCurrentSentence(pageText);
+        setCleanedTextForSpeech(pageText);
+
+        const context = canvas.getContext('2d');
+
+        if (!context) {
+          throw new Error('Unable to initialize the PDF canvas context.');
+        }
+
+        const baseViewport = page.getViewport({ scale: 1 });
+        const availableWidth =
+          viewportWidth > 0 ? Math.max(viewportWidth - 2, 0) : baseViewport.width;
+        const responsiveScale = Math.min(2.25, Math.max(0.75, availableWidth / baseViewport.width));
+        const outputScale = window.devicePixelRatio || 1;
+        const viewport = page.getViewport({ scale: responsiveScale * outputScale });
+
+        canvas.width = Math.floor(viewport.width);
+        canvas.height = Math.floor(viewport.height);
+        canvas.style.width = `${Math.floor(viewport.width / outputScale)}px`;
+        canvas.style.height = `${Math.floor(viewport.height / outputScale)}px`;
+
+        const renderTask = page.render({ canvasContext: context, canvas, viewport });
+        renderTaskRef.current = renderTask;
+
+        await renderTask.promise;
+      } catch (error) {
+        if (!cancelled) {
+          if (error instanceof Error && error.name !== 'RenderingCancelledException') {
+            console.error('Failed to render PDF page:', error);
+            setDocumentError(error.message || 'Failed to render the PDF page.');
+          }
+        }
+      } finally {
+        if (!cancelled) {
+          setIsPageRendering(false);
+        }
+      }
+    };
+
+    void renderCurrentPage();
+
+    return () => {
+      cancelled = true;
+
+      if (renderTaskRef.current) {
+        renderTaskRef.current.cancel();
+        renderTaskRef.current = null;
+      }
+    };
+  }, [currentPage, setCleanedTextForSpeech, setCurrentSentence, totalPages, viewportWidth]);
 
   return (
-    <div className="panel flex flex-col h-full min-h-0 overflow-hidden rounded-2xl bg-white/[0.02] backdrop-blur-xl border border-white/10 shadow-[0_24px_80px_rgba(0,0,0,0.35)]">
-      {/* Header */}
-      <div className="border-b border-white/10 px-5 sm:px-6 py-5 bg-white/[0.03]">
-        <h2 className="text-subheading mb-2 text-base sm:text-lg lg:text-xl">
-          <span className="text-warm text-cyan-accent">Aural Learning</span> in Cognitive Psychology
-        </h2>
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 text-data text-slate-400">
-          <span>Page 12 of 45</span>
-          <span>Reading time: 8:24</span>
-        </div>
-      </div>
+    <div className="flex flex-col h-full w-full rounded-2xl border border-white/5 bg-slate-900/20 p-5 backdrop-blur-xl overflow-hidden">
+      <div className="border-b border-white/10 bg-white/5 px-5 py-4 sm:px-6 sm:py-5">
+        <div className="flex flex-col gap-3">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="min-w-0">
+              <h2 className="text-subheading text-base font-semibold tracking-tight text-white sm:text-lg lg:text-xl">
+                <span className="text-cyan-accent">Project Summary Report Vox Academic</span>
+              </h2>
+            </div>
 
-      {/* PDF Content Area */}
-      <div className="flex-1 overflow-auto scrollbar-custom p-5 sm:p-6 relative">
-        {/* Scan-line effect */}
-        <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute inset-x-0 h-1 bg-linear-to-r from-transparent via-electric-blue to-transparent opacity-30 animate-scan-line" />
-        </div>
-
-        {/* Main content */}
-        <div className="prose prose-invert max-w-none">
-          {/* Paragraph 1 */}
-          <p className="text-body leading-relaxed text-sm sm:text-base text-white mb-6">
-            <span className="relative inline-flex w-full rounded-2xl border border-white/10 bg-white/[0.03] px-3 py-3 shadow-[0_0_0_1px_rgba(255,255,255,0.02),0_0_30px_rgba(26,140,255,0.12)]">
-              <span className="absolute left-3 top-1/2 h-2 w-2 -translate-y-1/2 rounded-full bg-cyan-accent shadow-[0_0_14px_rgba(0,212,255,0.9)]" />
-              <span className="pl-5">{highlightWords}</span>
-            </span>
-          </p>
-
-          {/* Paragraph 2 */}
-          <p className="text-body leading-relaxed text-sm sm:text-base text-white mb-6">
-            This adaptive capacity, known as synaptic plasticity, allows the brain to form new
-            neural connections and reorganize existing pathways in response to learning, experience,
-            and injury. The implications for education are profound: traditional rote memorization
-            approaches may be suboptimal compared to active, multi-sensory engagement strategies.
-          </p>
-
-          {/* Paragraph 3 */}
-          <p className="text-body leading-relaxed text-sm sm:text-base text-white mb-6">
-            Research conducted at leading cognitive science laboratories has consistently
-            demonstrated that auditory input combined with visual tracking significantly enhances
-            comprehension retention and long-term memory formation. When learners engage with
-            material through multiple sensory channels simultaneously, cognitive load is distributed
-            more effectively across working memory systems.
-          </p>
-
-          {/* Callout Box */}
-          <div className="my-8 p-4 panel-inset border border-white/10 bg-white/[0.03]">
-            <div className="text-label accent-primary mb-2">💡 Key Finding</div>
-            <p className="text-body text-sm sm:text-base text-white/80">
-              Multi-modal learning (audio + visual) increases retention by 65% compared to
-              single-modality approaches, according to Mayer&apos;s Cognitive Theory of Multimedia
-              Learning (2009).
-            </p>
+            <div className="flex shrink-0 items-center gap-2">
+              <span className="rounded-full bg-sky-500/10 px-3 py-1 text-xs text-sky-400 border border-sky-500/20">
+                Page {totalPages ? currentPage : 0} of {totalPages || 0}
+              </span>
+            </div>
           </div>
 
-          {/* Paragraph 4 */}
-          <p className="text-body leading-relaxed text-sm sm:text-base text-white">
-            The synchronization between auditory playback and visual highlighting serves two
-            critical functions: it maintains attention through paced exposure and it leverages the
-            dual-coding hypothesis, whereby concepts encoded in multiple formats are more robustly
-            represented in long-term memory.
-          </p>
+          <div className="flex flex-wrap items-center gap-2 text-xs text-slate-400">
+            <span>
+              {speech.words.length
+                ? `${speech.words.length} spoken words`
+                : 'Awaiting synced page text'}
+            </span>
+            <span className="h-1 w-1 rounded-full bg-white/20" />
+            <span>{speech.status === 'playing' ? 'Live sync active' : 'Ready for playback'}</span>
+            <span className="h-1 w-1 rounded-full bg-white/20" />
+            <span>
+              {currentSentence.trim().length
+                ? 'Current page text synced'
+                : 'No page text available yet'}
+            </span>
+          </div>
         </div>
       </div>
 
-      {/* Footer Info */}
-      <div className="border-t border-white/10 px-5 sm:px-6 py-4 bg-white/[0.03] text-data text-white/40">
-        <span>📍 Synchronized to: 2m 45s</span>
+      <div className="flex flex-1 min-h-0 flex-col overflow-hidden">
+        <div className="flex items-center justify-between gap-3 border-b border-white/10 bg-white/5 px-5 py-4 sm:px-6">
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handlePreviousPage}
+              disabled={!hasPdfFile || currentPage <= 1 || isDocumentLoading}
+              className="inline-flex h-11 items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 text-sm font-medium text-white transition-all duration-200 hover:border-cyan-400/30 hover:bg-white/8 hover:shadow-[0_0_24px_rgba(26,140,255,0.12)] active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              <span className="text-base">←</span>
+              Previous Page
+            </button>
+
+            <button
+              type="button"
+              onClick={handleNextPage}
+              disabled={!hasPdfFile || currentPage >= totalPages || isDocumentLoading}
+              className="inline-flex h-11 items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 text-sm font-medium text-white transition-all duration-200 hover:border-cyan-400/30 hover:bg-white/8 hover:shadow-[0_0_24px_rgba(26,140,255,0.12)] active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              Next Page
+              <span className="text-base">→</span>
+            </button>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-medium text-slate-300 shadow-inner">
+              {isDocumentLoading
+                ? 'Loading document'
+                : isPageRendering
+                  ? 'Rendering page'
+                  : 'Viewer ready'}
+            </span>
+          </div>
+        </div>
+
+        <div
+          ref={viewportRef}
+          className="flex-1 min-h-0 w-full overflow-y-auto rounded-xl bg-slate-950/40 p-4 border border-white/5 flex justify-center items-start"
+        >
+          <div className="relative flex w-full min-h-full justify-center">
+            <div className="relative w-full max-w-full overflow-hidden rounded-2xl border border-white/10 bg-[#08111f]/80 p-3 shadow-[0_0_0_1px_rgba(255,255,255,0.03),0_24px_80px_rgba(0,0,0,0.4)] backdrop-blur-xl sm:p-4">
+              {documentError && (
+                <div className="mb-4 rounded-xl border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-sm text-rose-100">
+                  {documentError}
+                </div>
+              )}
+
+              {!hasPdfFile ? (
+                <div className="flex min-h-104 items-center justify-center rounded-2xl border border-dashed border-white/10 bg-white/5 p-6 text-center text-slate-300">
+                  <div className="max-w-md">
+                    <p className="text-lg font-semibold text-white">No PDF selected yet</p>
+                    <p className="mt-2 text-sm leading-6 text-slate-400">
+                      Upload a PDF from the left panel to render pages, extract the visible page
+                      text, and sync the current page into the audio pipeline.
+                    </p>
+                  </div>
+                </div>
+              ) : isDocumentLoading ? (
+                <div className="flex min-h-104 items-center justify-center rounded-2xl border border-white/10 bg-white/5 p-6">
+                  <div className="text-center">
+                    <div className="mx-auto h-12 w-12 animate-spin rounded-full border-2 border-cyan-400/30 border-t-cyan-300" />
+                    <p className="mt-4 text-sm font-medium uppercase tracking-[0.22em] text-slate-300">
+                      Loading PDF
+                    </p>
+                    <p className="mt-2 text-sm text-slate-400">
+                      Preparing the document for responsive canvas rendering and text extraction.
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex min-h-104 justify-center rounded-2xl bg-[#0b1220] p-3 sm:p-4">
+                  <canvas
+                    ref={canvasRef}
+                    className="block max-w-full rounded-xl border border-white/10 bg-white shadow-[0_24px_80px_rgba(0,0,0,0.35)]"
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div className="border-t border-white/10 bg-white/5 px-5 py-4 text-xs text-slate-400 sm:px-6">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <span>
+              {speech.status === 'playing'
+                ? `Speaking word ${Math.max(speech.activeWordIndex + 1, 1)}`
+                : 'Ready to sync'}
+            </span>
+            <span>
+              {hasSpeechText
+                ? 'Visible page text is pushed to the audio system'
+                : 'Waiting for synced page text'}
+            </span>
+          </div>
+        </div>
       </div>
     </div>
   );

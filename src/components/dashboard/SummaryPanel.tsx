@@ -1,30 +1,111 @@
 'use client';
 
+import { useMemo } from 'react';
+import { usePDFContext } from './PDFContext';
+
 const waveformHeights = [
   34, 58, 44, 76, 52, 63, 41, 71, 49, 68, 37, 55, 62, 46, 74, 39, 57, 69, 43, 61, 48, 73, 35, 66,
 ];
 
+const stopWords = new Set([
+  'the',
+  'and',
+  'that',
+  'with',
+  'from',
+  'this',
+  'have',
+  'will',
+  'your',
+  'into',
+  'their',
+  'there',
+  'about',
+  'through',
+  'for',
+  'are',
+  'was',
+  'were',
+  'has',
+  'had',
+  'its',
+  'our',
+  'can',
+  'also',
+  'not',
+  'they',
+  'you',
+  'but',
+  'what',
+  'when',
+  'where',
+  'which',
+  'who',
+  'whom',
+  'why',
+  'how',
+  'a',
+  'an',
+  'to',
+  'of',
+  'in',
+  'on',
+  'or',
+  'as',
+  'at',
+  'by',
+  'be',
+  'is',
+  'it',
+  'we',
+  'he',
+  'she',
+  'them',
+  'his',
+  'her',
+  'than',
+  'then',
+  'more',
+  'less',
+  'over',
+  'under',
+  'after',
+  'before',
+  'during',
+  'each',
+  'every',
+]);
+
+function buildKeyConcepts(text: string) {
+  const words = text
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, ' ')
+    .split(/\s+/)
+    .map((word) => word.trim())
+    .filter((word) => word.length > 4 && !stopWords.has(word));
+
+  const counts = new Map<string, number>();
+
+  for (const word of words) {
+    counts.set(word, (counts.get(word) ?? 0) + 1);
+  }
+
+  return [...counts.entries()]
+    .sort((left, right) => right[1] - left[1] || left[0].localeCompare(right[0]))
+    .slice(0, 3)
+    .map(([word, count]) => ({
+      label: word.replace(/\b\w/g, (character) => character.toUpperCase()),
+      description:
+        count === 1
+          ? 'Important term appearing in the extracted document'
+          : `Repeated ${count} times in the extracted document`,
+    }));
+}
+
 export default function SummaryPanel() {
-  const insights = [
-    {
-      type: 'concept',
-      label: 'Neuroplasticity',
-      description: "The brain's ability to reorganize and adapt throughout life",
-      color: 'electric-blue',
-    },
-    {
-      type: 'concept',
-      label: 'Synaptic Plasticity',
-      description: 'Formation of new neural connections in response to experience',
-      color: 'cyan-accent',
-    },
-    {
-      type: 'concept',
-      label: 'Dual-Coding Hypothesis',
-      description: 'Concepts encoded in multiple formats are more robustly remembered',
-      color: 'electric-blue',
-    },
-  ];
+  const { cleanedTextForSpeech, documentSummary, documentTitle } = usePDFContext();
+
+  const insights = useMemo(() => buildKeyConcepts(cleanedTextForSpeech), [cleanedTextForSpeech]);
 
   const studyTips = [
     'Take notes while listening to highlight personal connections',
@@ -38,12 +119,17 @@ export default function SummaryPanel() {
       <div className="border-b border-white/10 px-5 sm:px-6 py-5 bg-white/3">
         <h3 className="text-subheading flex items-center gap-2">
           <span>🧠</span>
-          AI Insights
+          {documentTitle}
         </h3>
       </div>
 
       {/* Content */}
       <div className="flex-1 overflow-auto scrollbar-custom">
+        <div className="px-5 sm:px-6 py-5 sm:py-6 border-b border-white/10">
+          <div className="text-label accent-primary mb-4">Summary Report</div>
+          <p className="text-sm leading-6 text-slate-300/90">{documentSummary}</p>
+        </div>
+
         {/* Key Concepts */}
         <div className="px-5 sm:px-6 py-5 sm:py-6 border-b border-white/10">
           <div className="text-label accent-primary mb-4">Key Concepts</div>
@@ -54,11 +140,7 @@ export default function SummaryPanel() {
                 className="group p-3 panel-inset border border-white/5 hover:border-white/10 active:scale-95 transition-transform cursor-pointer bg-white/3"
               >
                 <div className="flex items-start gap-3">
-                  <div
-                    className={`shrink-0 w-2 h-2 rounded-full mt-2 ${
-                      insight.color === 'cyan-accent' ? 'bg-cyan-accent' : 'bg-electric-blue'
-                    }`}
-                  />
+                  <div className="shrink-0 w-2 h-2 rounded-full mt-2 bg-cyan-accent" />
                   <div className="flex-1 min-w-0">
                     <div className="text-label text-white group-hover:accent-primary transition-colors">
                       {insight.label}

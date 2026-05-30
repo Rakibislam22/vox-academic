@@ -37,56 +37,54 @@ export default function Sidebar({ isDrawer = false, onClose, session: sessionPro
   ];
 
   const baseClasses = isDrawer
-    ? 'fixed inset-y-0 left-0 w-72 max-w-[85vw] z-50 bg-white/2 backdrop-blur-xl border-r border-white/10 flex flex-col overflow-y-auto overflow-x-hidden overscroll-contain'
-    : 'w-full xl:w-52 h-auto xl:h-full xl:min-h-0 bg-white/2 backdrop-blur-xl border-b xl:border-b-0 xl:border-r border-white/10 flex xl:flex-col';
+    ? 'fixed inset-y-0 left-0 z-50 w-72 max-w-[85vw] flex flex-col justify-between overflow-hidden border-r border-white/5 bg-[#0b0f19] py-6 px-4'
+    : 'flex h-screen max-h-screen w-full flex-col justify-between overflow-hidden border-r border-white/5 bg-[#0b0f19] py-6 px-4';
 
   return (
     <aside className={baseClasses}>
-      <div
-        className={`relative h-16 w-full border-r xl:border-r-0 xl:border-b border-white/10 flex items-center px-4 shrink-0 bg-white/3 ${isDrawer ? 'justify-between border-r-0' : 'justify-center'}`}
-      >
-        <Link
-          href="/"
-          className={`text-xl font-bold accent-primary ${isDrawer ? '' : 'absolute left-1/2 -translate-x-1/2'}`}
-        >
-          Vox
-        </Link>
-        {isDrawer && (
-          <button
-            aria-label="Close menu"
-            onClick={onClose}
-            className="lg:hidden btn btn-ghost btn-sm"
+      <div className="flex-1 min-h-0 overflow-y-auto space-y-8 scrollbar-custom">
+        <div className="relative flex h-16 items-center justify-center border-b border-white/10 pb-4 shrink-0">
+          <Link
+            href="/"
+            className="absolute left-1/2 -translate-x-1/2 text-xl font-bold accent-primary"
           >
-            ✕
-          </button>
-        )}
-      </div>
+            Vox
+          </Link>
+          {isDrawer && (
+            <button
+              aria-label="Close menu"
+              onClick={onClose}
+              className="absolute right-0 top-1/2 -translate-y-1/2 lg:hidden btn btn-ghost btn-sm"
+            >
+              ✕
+            </button>
+          )}
+        </div>
 
-      <nav className="flex-1 overflow-x-auto overflow-y-hidden xl:overflow-y-auto scrollbar-custom px-2 sm:px-3 py-3 xl:py-6">
-        <div className="flex flex-col gap-2 xl:space-y-2 xl:block min-w-0">
+        <nav className="space-y-2 min-w-0">
           {navItems.map((item) => (
             <button
               key={item.id}
               onClick={() => setActiveNav(item.id)}
-              className={`flex items-center gap-3 px-4 py-3 rounded-lg text-label transition-transform active:scale-95 whitespace-nowrap xl:w-full ${
+              className={`flex w-full items-center gap-3 rounded-lg px-4 py-3 text-label transition-transform active:scale-95 whitespace-nowrap ${
                 activeNav === item.id
-                  ? 'bg-electric-blue/20 text-electric-blue border border-electric-blue/40'
-                  : 'text-white/70 hover:text-white/90 hover:bg-navy-dark'
+                  ? 'border border-electric-blue/40 bg-electric-blue/20 text-electric-blue'
+                  : 'text-white/70 hover:bg-navy-dark hover:text-white/90'
               }`}
             >
               <span className="text-lg">{item.icon}</span>
-              <span className="flex-1 text-left truncate">{item.label}</span>
+              <span className="flex-1 truncate text-left">{item.label}</span>
               {item.badge && (
-                <span className="text-xs px-2 py-1 rounded-full bg-electric-blue/30 text-electric-blue">
+                <span className="rounded-full bg-electric-blue/30 px-2 py-1 text-xs text-electric-blue">
                   {item.badge}
                 </span>
               )}
             </button>
           ))}
-        </div>
-      </nav>
+        </nav>
+      </div>
 
-      <div className="border-t border-white/10 p-4 bg-white/2">
+      <div className="shrink-0 mt-6 border-t border-white/5 pt-4">
         {isAuthenticated ? (
           <div className="space-y-3">
             <div className="flex items-center gap-3 rounded-lg p-2 transition-transform">

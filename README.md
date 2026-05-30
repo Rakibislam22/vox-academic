@@ -1,68 +1,107 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Vox Academic
 
-## Getting Started
+Vox Academic is a PDF-first academic reading workspace that converts uploaded documents into a structured study experience. The app combines a responsive canvas-based PDF viewer, page text extraction, AI-generated summaries, and audio playback so readers can move between scanning, listening, and revising without leaving the dashboard.
 
-First, run the development server:
+## Executive Summary
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+The project addresses a common academic workflow problem: long PDFs are difficult to read, hard to revise, and easy to lose context inside. Vox Academic turns each uploaded PDF into an interactive workspace with page navigation, summary insights, and speech-driven playback controls.
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+The current implementation focuses on three main outcomes:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+1. Render the uploaded PDF in a responsive canvas viewer.
+2. Extract visible page text and feed it into the summary and audio pipelines.
+3. Present playback controls, timers, and progress feedback in a fixed dashboard layout.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Problem Statement
 
-## Learn More
+Academic PDFs are dense, static, and time-consuming to review. Users often need to:
 
-To learn more about Next.js, take a look at the following resources:
+- scan long papers quickly,
+- extract the main ideas,
+- listen instead of reading,
+- jump between pages and sections,
+- keep track of what has already been reviewed.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Traditional PDF readers do not provide this workflow in one place.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Proposed Solution
 
-## Deploy on Vercel
+Vox Academic solves the problem by layering study tools on top of the document itself:
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- a PDF viewer that renders pages responsively on canvas,
+- a summary panel that surfaces key concepts and reading tips,
+- an audio layer for playback and guided listening,
+- a dashboard layout that keeps navigation and controls visible.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+The idea is to make the PDF act like a study object rather than a static file.
 
-Production auth checklist for Vercel:
+## Core Features
 
-- Set a stable `AUTH_SECRET` or `NEXTAUTH_SECRET` in the Vercel project settings.
-- Set `NEXTAUTH_URL` to the deployed app URL, for example `https://your-app.vercel.app`.
-- If you use Google sign-in, also add `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`.
-- Redeploy after updating environment variables so the auth cookies and middleware can use the same secret.
+### PDF Viewing
 
-## CI/CD Pipeline
+- Upload a PDF and render it inside a responsive canvas.
+- Move between pages with previous and next controls.
+- Keep the viewer isolated inside the dashboard layout so it does not expand the page.
 
-This repository now includes a GitHub Actions workflow at [.github/workflows/ci-cd.yml](.github/workflows/ci-cd.yml) that does two things:
+### Text Extraction
 
-1. On every pull request and push to `develop` or `main`, it installs dependencies, runs `npm run lint`, and runs `npm run build`.
-2. On pushes to `main`, it also deploys the app to Vercel after the checks pass.
+- Extract the visible text from the current page.
+- Sync that text into the dashboard summary context.
+- Use the extracted content for summaries, concepts, and audio input.
 
-To enable the deployment job, add these GitHub repository secrets:
+### Summary Panel
 
-- `VERCEL_TOKEN`
-- `VERCEL_ORG_ID`
-- `VERCEL_PROJECT_ID`
+- Show the document title and summary.
+- Surface key concepts detected from the extracted text.
+- Display short study tips for revision and retention.
 
-How it works:
+### Audio Playback
 
-- `actions/checkout` pulls your code into the runner.
-- `actions/setup-node` installs Node.js 20 and enables npm caching.
-- `npm ci` installs exactly what is locked in `package-lock.json`.
-- `npm run lint` and `npm run build` act as the quality gate.
-- The deploy job uses the Vercel CLI to pull project settings, build a production artifact, and publish that prebuilt output.
+- Generate audio from the extracted text through the backend audio route.
+- Provide a fixed bottom control bar with play, skip, timeline, and speed controls.
+- Keep the playback state visible while the user continues reading.
 
-Enforcing checks with Branch Protection
+### Dashboard Layout
 
-To require this CI before merges, add a branch protection rule for your `main` branch in the GitHub repository settings and require the status check named `ci/verify` (this is the check run created by the workflow). After adding that requirement, pull requests cannot be merged until the workflow completes successfully.
+- Left sidebar for library and account access.
+- Center PDF viewer.
+- Right-side summary and insight panel.
+- Bottom control bar pinned across the viewport.
+
+## How It Works
+
+1. A user uploads a PDF.
+2. The dashboard loads the document and renders the active page.
+3. The page text is extracted and stored in shared PDF context.
+4. The summary panel uses that text to generate concepts and guidance.
+5. The audio route receives the same text and returns playable output.
+6. The control bar updates progress, speed, and seek behavior while the user listens.
+
+## Technical Notes
+
+- Framework: Next.js App Router
+- Language: TypeScript + React
+- PDF rendering: `pdfjs-dist`
+- Styling: Tailwind CSS with utility-first layout patterns
+- Audio flow: backend TTS generation with dashboard playback controls
+
+## Important Files
+
+- [src/app/dashboard/page.tsx](src/app/dashboard/page.tsx)
+- [src/components/dashboard/PDFPanel.tsx](src/components/dashboard/PDFPanel.tsx)
+- [src/components/dashboard/SummaryPanel.tsx](src/components/dashboard/SummaryPanel.tsx)
+- [src/components/dashboard/ControlBar.tsx](src/components/dashboard/ControlBar.tsx)
+- [src/components/dashboard/PDFContext.tsx](src/components/dashboard/PDFContext.tsx)
+- [src/app/api/generate-audio/route.ts](src/app/api/generate-audio/route.ts)
+- [src/app/api/process-pdf/route.ts](src/app/api/process-pdf/route.ts)
+
+## Project Structure Snapshot
+
+- `src/app/` - application routes and layouts
+- `src/components/` - reusable dashboard and site UI
+- `src/app/api/` - PDF and audio service routes
+- `src/lib/` - validation, auth, and data helpers
+
+## Notes
+
+The source PDF that originally described this report has been removed from the workspace and its content is now represented here in markdown form.
