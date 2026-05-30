@@ -1,16 +1,92 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useRef, useState } from 'react';
 import { Upload, Globe, FileText, ArrowRight, Loader2 } from 'lucide-react';
+import { GlobalWorkerOptions, getDocument } from 'pdfjs-dist/legacy/build/pdf.mjs';
+import { usePDFContext } from './PDFContext';
 
 interface EmptyUploadStateProps {
   onUploadSuccess: () => void;
 }
 
+GlobalWorkerOptions.workerSrc = new URL(
+  'pdfjs-dist/legacy/build/pdf.worker.min.mjs',
+  import.meta.url,
+).toString();
+
+async function extractPdfText(file: File) {
+  const pdfData = await file.arrayBuffer();
+  const loadingTask = getDocument({ data: pdfData });
+  const pdfDocument = await loadingTask.promise;
+
+  const pageTexts: string[] = [];
+
+  for (let pageNumber = 1; pageNumber <= pdfDocument.numPages; pageNumber += 1) {
+    const page = await pdfDocument.getPage(pageNumber);
+    const textContent = await page.getTextContent();
+
+    const pageText = textContent.items
+      .map((item) => ('str' in item ? item.str : ''))
+      .filter(Boolean)
+      .join(' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    if (pageText) {
+      pageTexts.push(`Page ${pageNumber}: ${pageText}`);
+    }
+  }
+
+  return pageTexts.join('\n\n').trim();
+}
+
+function deriveDocumentTitle(file: File, extractedText: string) {
+  const normalizedText = extractedText.replace(/^Page \d+:\s*/gm, '').trim();
+  const firstLine = normalizedText
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .find(Boolean);
+
+  if (firstLine) {
+    const candidate = firstLine.replace(/\s+/g, ' ').replace(/[.!?]+$/, '');
+
+    if (candidate.length >= 8 && candidate.length <= 110) {
+      return candidate;
+    }
+  }
+
+  return file.name.replace(/\.pdf$/i, '').replace(/[-_]+/g, ' ').trim() || 'Uploaded PDF';
+}
+
+function deriveDocumentSummary(extractedText: string) {
+  const cleanedText = extractedText.replace(/^Page \d+:\s*/gm, '').replace(/\s+/g, ' ').trim();
+
+  if (!cleanedText) {
+    return 'No readable text was extracted from this PDF.';
+  }
+
+  const sentences = cleanedText.match(/[^.!?]+[.!?]+/g) ?? [];
+  const summarySentences = sentences.slice(0, 2).join(' ').trim();
+
+  if (summarySentences) {
+    return summarySentences;
+  }
+
+  const words = cleanedText.split(' ');
+  return `${words.slice(0, 40).join(' ')}${words.length > 40 ? '…' : ''}`;
+}
+
 export default function EmptyUploadState({ onUploadSuccess }: EmptyUploadStateProps) {
+  const {
+    setCleanedTextForSpeech,
+    setCurrentSentence,
+    setDocumentTitle,
+    setDocumentSummary,
+  } = usePDFContext();
   const [isDragging, setIsDragging] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Drag and Drop Handlers
@@ -28,29 +104,43 @@ export default function EmptyUploadState({ onUploadSuccess }: EmptyUploadStatePr
     setIsDragging(false);
     const files = e.dataTransfer.files;
     if (files && files.length > 0 && files[0].type === 'application/pdf') {
-      triggerProcessing();
+      void triggerProcessing(files[0]);
     }
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
-      triggerProcessing();
+      void triggerProcessing(e.target.files[0]);
     }
   };
 
-  // Mock processing loader to simulate backend extraction
-  const triggerProcessing = () => {
+  const triggerProcessing = async (file: File) => {
+    setErrorMessage('');
     setIsLoading(true);
-    setTimeout(() => {
-      setIsLoading(false);
+    try {
+      const extractedText = await extractPdfText(file);
+
+      if (!extractedText) {
+        throw new Error('No readable text was found in this PDF. Scanned PDFs need OCR.');
+      }
+
+      setDocumentTitle(deriveDocumentTitle(file, extractedText));
+      setDocumentSummary(deriveDocumentSummary(extractedText));
+      setCleanedTextForSpeech(extractedText);
+      setCurrentSentence(extractedText);
       onUploadSuccess();
-    }, 2000); // 2 seconds processing animation
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to read the PDF.';
+      setErrorMessage(message);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleWebSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchQuery.trim()) {
-      triggerProcessing();
+      setErrorMessage('Web discovery is not wired to extraction yet. Upload a PDF to sync real text.');
     }
   };
 
@@ -60,7 +150,7 @@ export default function EmptyUploadState({ onUploadSuccess }: EmptyUploadStatePr
       <div className="space-y-2">
         <h1 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">
           Welcome to{' '}
-          <span className="bg-gradient-to-r select-none from-blue-400 to-indigo-400 bg-clip-text text-transparent">
+          <span className="bg-linear-to-r select-none from-blue-400 to-indigo-400 bg-clip-text text-transparent">
             Vox Academic
           </span>
         </h1>
@@ -72,7 +162,7 @@ export default function EmptyUploadState({ onUploadSuccess }: EmptyUploadStatePr
 
       {isLoading ? (
         /* Processing/Loading State */
-        <div className="flex flex-col items-center justify-center rounded-2xl border border-white/10 bg-white/5 p-12 text-center backdrop-blur-xl min-h-[320px]">
+        <div className="flex flex-col items-center justify-center rounded-2xl border border-white/10 bg-white/5 p-12 text-center backdrop-blur-xl min-h-80">
           <Loader2 className="h-10 w-10 animate-spin text-blue-500" />
           <h3 className="mt-4 text-lg font-semibold text-white">Analyzing Document...</h3>
           <p className="mt-2 text-sm text-slate-400 max-w-xs">
@@ -88,11 +178,10 @@ export default function EmptyUploadState({ onUploadSuccess }: EmptyUploadStatePr
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
             onClick={() => fileInputRef.current?.click()}
-            className={`group relative flex flex-col items-center justify-center rounded-2xl border-2 border-dashed p-8 text-center backdrop-blur-xl cursor-pointer transition-all duration-300 min-h-[220px] ${
-              isDragging
-                ? 'border-blue-500 bg-blue-500/10 shadow-[0_0_30px_rgba(59,130,246,0.2)]'
-                : 'border-white/10 bg-white/3 hover:border-white/20 hover:bg-white/5'
-            }`}
+            className={`group relative flex flex-col items-center justify-center rounded-2xl border-2 border-dashed p-8 text-center backdrop-blur-xl cursor-pointer transition-all duration-300 min-h-55 ${isDragging
+              ? 'border-blue-500 bg-blue-500/10 shadow-[0_0_30px_rgba(59,130,246,0.2)]'
+              : 'border-white/10 bg-white/3 hover:border-white/20 hover:bg-white/5'
+              }`}
           >
             <input
               type="file"
@@ -118,11 +207,11 @@ export default function EmptyUploadState({ onUploadSuccess }: EmptyUploadStatePr
 
           {/* Divider text separator */}
           <div className="relative flex py-2 items-center">
-            <div className="flex-grow border-t border-white/5"></div>
-            <span className="flex-shrink mx-4 text-xs font-semibold text-slate-500 uppercase tracking-widest select-none">
+            <div className="grow border-t border-white/5"></div>
+            <span className="shrink mx-4 text-xs font-semibold text-slate-500 uppercase tracking-widest select-none">
               OR
             </span>
-            <div className="flex-grow border-t border-white/5"></div>
+            <div className="grow border-t border-white/5"></div>
           </div>
 
           {/* Option 2: Dynamic Web Discovery (Browse over internet) */}
@@ -159,6 +248,12 @@ export default function EmptyUploadState({ onUploadSuccess }: EmptyUploadStatePr
               </button>
             </div>
           </form>
+
+          {errorMessage && (
+            <div className="rounded-2xl border border-rose-400/20 bg-rose-500/10 px-4 py-3 text-sm text-rose-100">
+              {errorMessage}
+            </div>
+          )}
         </div>
       )}
     </div>

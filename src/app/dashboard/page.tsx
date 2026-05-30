@@ -7,11 +7,6 @@ import ControlBar from '@/components/dashboard/ControlBar';
 import EmptyUploadState from '@/components/dashboard/EmptyUploadState'; // Initial layout custom component
 
 export default function DashboardPage() {
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [currentTime, setCurrentTime] = useState(0);
-  const [duration] = useState(0);
-  const [playbackSpeed, setPlaybackSpeed] = useState(1);
-  const [selectedVoice, setSelectedVoice] = useState('Aura - Natural');
   const [activeMobileTab, setActiveMobileTab] = useState<'pdf' | 'insights'>('pdf');
 
   // New state to check if a document is uploaded/selected
@@ -31,21 +26,19 @@ export default function DashboardPage() {
             <div className="grid grid-cols-2 gap-1">
               <button
                 onClick={() => setActiveMobileTab('pdf')}
-                className={`rounded-xl px-4 py-2 text-sm font-medium transition-transform active:scale-95 ${
-                  activeMobileTab === 'pdf'
+                className={`rounded-xl px-4 py-2 text-sm font-medium transition-transform active:scale-95 ${activeMobileTab === 'pdf'
                     ? 'bg-white/8 text-white shadow-[0_0_20px_rgba(26,140,255,0.14)]'
                     : 'text-slate-400'
-                }`}
+                  }`}
               >
                 PDF View
               </button>
               <button
                 onClick={() => setActiveMobileTab('insights')}
-                className={`rounded-xl px-4 py-2 text-sm font-medium transition-transform active:scale-95 ${
-                  activeMobileTab === 'insights'
+                className={`rounded-xl px-4 py-2 text-sm font-medium transition-transform active:scale-95 ${activeMobileTab === 'insights'
                     ? 'bg-white/8 text-white shadow-[0_0_20px_rgba(26,140,255,0.14)]'
                     : 'text-slate-400'
-                }`}
+                  }`}
               >
                 AI Insights
               </button>
@@ -56,11 +49,10 @@ export default function DashboardPage() {
 
       {/* Main content area */}
       <div
-        className={`flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-4 pt-0 sm:p-6 sm:pt-0 ${
-          hasFile
+        className={`flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-4 pt-0 sm:p-6 sm:pt-0 ${hasFile
             ? 'lg:grid lg:grid-cols-[1.22fr_1fr] lg:gap-6 lg:overflow-hidden'
             : 'lg:flex lg:justify-start' // When no file, take initial alignment
-        }`}
+          }`}
       >
         {/* INITIAL STATE (No file loaded) */}
         {!hasFile ? (
@@ -91,17 +83,7 @@ export default function DashboardPage() {
 
       {/* Control Bar: Only displays or becomes active when file exists */}
       {hasFile && (
-        <ControlBar
-          isPlaying={isPlaying}
-          onPlayPause={() => setIsPlaying(!isPlaying)}
-          currentTime={currentTime}
-          onTimeChange={setCurrentTime}
-          duration={duration}
-          playbackSpeed={playbackSpeed}
-          onSpeedChange={setPlaybackSpeed}
-          selectedVoice={selectedVoice}
-          onVoiceChange={setSelectedVoice}
-        />
+        <ControlBar />
       )}
     </div>
   );
