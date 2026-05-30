@@ -1,11 +1,15 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import PDFPanel from '@/components/dashboard/PDFPanel';
 import SummaryPanel from '@/components/dashboard/SummaryPanel';
 import ControlBar from '@/components/dashboard/ControlBar';
 import EmptyUploadState from '@/components/dashboard/EmptyUploadState'; // Initial layout custom component
 import { usePDFContext } from '@/components/dashboard/PDFContext';
+
+const PDFPanel = dynamic(() => import('@/components/dashboard/PDFPanel'), {
+  ssr: false,
+});
 
 export default function DashboardPage() {
   const { cleanedTextForSpeech } = usePDFContext();

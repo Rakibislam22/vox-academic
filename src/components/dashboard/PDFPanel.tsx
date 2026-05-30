@@ -1,6 +1,6 @@
 'use client';
 
-import { GlobalWorkerOptions } from 'pdfjs-dist/build/pdf.mjs';
+import { GlobalWorkerOptions } from 'pdfjs-dist/legacy/build/pdf.mjs';
 import { usePDFContext } from './PDFContext';
 
 GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs';
