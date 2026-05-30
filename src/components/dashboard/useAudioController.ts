@@ -18,26 +18,24 @@ export function useAudioController(text: string) {
 
     // Reset the state whenever the text changes so users can attempt standard server-fetching again
     useEffect(() => {
-        setPlaybackMode('stream');
-        setIsPlaying(false);
-        setCurrentTime(0);
-        setDuration(0);
-        if (audioRef.current) {
-            audioRef.current.pause();
-            audioRef.current.src = '';
-        }
-        setShowFallbackToast(false);
         if (toastTimeoutRef.current) {
             window.clearTimeout(toastTimeoutRef.current);
         }
+
+        queueMicrotask(() => {
+            setPlaybackMode('stream');
+            setIsPlaying(false);
+            setCurrentTime(0);
+            setDuration(0);
+            if (audioRef.current) {
+                audioRef.current.pause();
+                audioRef.current.src = '';
+            }
+            setShowFallbackToast(false);
+        });
     }, [text]);
 
-    // Synchronize browser speech status back to our main isPlaying state for the UI
-    useEffect(() => {
-        if (playbackMode === 'browser') {
-            setIsPlaying(speechSync.status === 'playing');
-        }
-    }, [speechSync.status, playbackMode]);
+    const effectiveIsPlaying = playbackMode === 'browser' ? speechSync.status === 'playing' : isPlaying;
 
     const onPlayPause = useCallback(async () => {
         // 1. Browser Speech Synthesis Fallback Mode
@@ -84,7 +82,7 @@ export function useAudioController(text: string) {
                     setPlaybackMode('browser');
                     speechSync.setRate(playbackSpeed); // Transfer the current speed natively
                     speechSync.play(); // Immediately initialize the SpeechSynthesisUtterance workflow
-                    setIsPlaying(true); // Aggressively bind UI to playing state
+                    setIsPlaying(true); // Keep stream-state aligned until the derived browser state takes over
 
                     setShowFallbackToast(true);
                     if (toastTimeoutRef.current) window.clearTimeout(toastTimeoutRef.current);
@@ -160,7 +158,7 @@ export function useAudioController(text: string) {
     return {
         playbackMode,
         isLoadingAudio,
-        isPlaying,
+        isPlaying: effectiveIsPlaying,
         playbackSpeed,
         currentTime,
         duration,

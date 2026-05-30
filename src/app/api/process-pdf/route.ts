@@ -1,60 +1,89 @@
+import { GoogleGenAI } from '@google/genai';
 import { NextResponse } from 'next/server';
 import {
     processPdfRequestSchema,
     processPdfResponseSchema,
-    type ProcessPdfRequest,
 } from '@/lib/validations/process-pdf';
 
 export const runtime = 'nodejs';
 
-const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
-const GROQ_MODEL = process.env.GROQ_MODEL?.trim() || 'llama-3.3-70b-versatile';
+const GEMINI_MODEL = process.env.GEMINI_MODEL?.trim() || 'gemini-2.5-flash';
 const REQUEST_TIMEOUT_MS = 45_000;
+const RESPONSE_MIME_TYPE = 'application/json';
 
-function buildSourceText(payload: ProcessPdfRequest) {
-    const sections: string[] = [];
+const GEMINI_RESPONSE_JSON_SCHEMA = {
+    type: 'object',
+    additionalProperties: false,
+    required: ['summary', 'keyTakeaways', 'academicVocabulary'],
+    properties: {
+        summary: {
+            type: 'string',
+            minLength: 1,
+            description: 'Concise academic summary grounded in the input text.',
+        },
+        keyTakeaways: {
+            type: 'array',
+            minItems: 1,
+            maxItems: 8,
+            items: {
+                type: 'string',
+                minLength: 1,
+            },
+            description: 'A short list of core takeaways from the document.',
+        },
+        academicVocabulary: {
+            type: 'array',
+            minItems: 0,
+            maxItems: 20,
+            items: {
+                type: 'object',
+                additionalProperties: false,
+                required: ['word', 'definition'],
+                properties: {
+                    word: {
+                        type: 'string',
+                        minLength: 1,
+                    },
+                    definition: {
+                        type: 'string',
+                        minLength: 1,
+                    },
+                },
+            },
+            description: 'Academic or domain-specific terms with brief definitions.',
+        },
+    },
+} as const;
 
-    if (payload.title) {
-        sections.push(`Title: ${payload.title}`);
+let geminiClient: GoogleGenAI | null = null;
+
+function getGeminiClient() {
+    if (geminiClient) {
+        return geminiClient;
     }
 
-    if (payload.sourceType) {
-        sections.push(`Source type: ${payload.sourceType}`);
+    const apiKey = process.env.GEMINI_API_KEY?.trim();
+
+    if (!apiKey) {
+        return null;
     }
 
-    if (payload.sourceUrl) {
-        sections.push(`Source URL: ${payload.sourceUrl}`);
-    }
-
-    if (payload.pages?.length) {
-        const pageText = payload.pages
-            .map((page, index) => {
-                const pageLabel = page.pageNumber ?? index + 1;
-                return `Page ${pageLabel}:\n${page.text.trim()}`;
-            })
-            .join('\n\n');
-
-        sections.push(`Multi-page content:\n${pageText}`);
-    }
-
-    if (payload.content) {
-        sections.push(`Content:\n${payload.content.trim()}`);
-    }
-
-    return sections.join('\n\n');
+    geminiClient = new GoogleGenAI({ apiKey });
+    return geminiClient;
 }
 
-function buildSystemPrompt() {
+function buildSystemInstruction() {
     return [
-        'You are an academic summarization engine for PDF text and web-discovered content.',
+        'You are an academic analysis engine for raw text extracted from PDFs or web-discovered documents.',
         'Return only valid JSON that matches exactly this schema:',
-        '{"summary":string,"keyVocabulary":[{"word":string,"definition":string}],"cleanedTextForSpeech":string}',
+        '{"summary":string,"keyTakeaways":[string],"academicVocabulary":[{"word":string,"definition":string}]}',
         'Rules:',
-        '- Output JSON only. Do not include markdown fences, explanations, or extra keys.',
-        '- summary must be concise, factual, and grounded in the provided text.',
-        '- keyVocabulary must capture important domain terms with short plain-language definitions.',
-        '- cleanedTextForSpeech must be fluent, natural to read aloud, and remove headers, footers, page numbers, broken hyphenation, and OCR noise.',
-        '- If the input is too sparse, preserve meaning without inventing unsupported facts.',
+        '- Output JSON only. No markdown, no code fences, no commentary, and no extra keys.',
+        '- summary must be concise, factual, and grounded strictly in the provided text.',
+        '- keyTakeaways must contain short, distinct, practical takeaways derived from the text.',
+        '- academicVocabulary must contain relevant academic or domain terms with brief plain-language definitions.',
+        '- Do not invent facts, citations, or terminology that is not supported by the source text.',
+        '- If the source text is sparse, be conservative and preserve meaning without embellishment.',
     ].join('\n');
 }
 
@@ -72,44 +101,18 @@ function buildJsonError(status: number, message: string, details?: Record<string
     );
 }
 
-function getRetryAfterSeconds(error: unknown) {
-    if (!error || typeof error !== 'object') {
+function getRetryAfterSecondsFromHeaders(headers: Headers | undefined) {
+    if (!headers) {
         return undefined;
     }
 
-    const candidate = error as {
-        response?: { headers?: { get?: (name: string) => string | null } };
-        headers?: { get?: (name: string) => string | null };
-        retryAfter?: string | number;
-    };
-
-    if (typeof candidate.retryAfter === 'number') {
-        return candidate.retryAfter;
-    }
-
-    if (typeof candidate.retryAfter === 'string') {
-        const parsed = Number(candidate.retryAfter);
-        return Number.isFinite(parsed) ? parsed : undefined;
-    }
-
-    const retryAfterHeader =
-        candidate.response?.headers?.get?.('retry-after') ?? candidate.headers?.get?.('retry-after');
+    const retryAfterHeader = headers.get('retry-after');
     if (!retryAfterHeader) {
         return undefined;
     }
 
     const parsed = Number(retryAfterHeader);
     return Number.isFinite(parsed) ? parsed : undefined;
-}
-
-function getGroqApiKey() {
-    const apiKey = process.env.GROQ_API_KEY;
-
-    if (!apiKey || !apiKey.trim()) {
-        return null;
-    }
-
-    return apiKey.trim();
 }
 
 function extractJsonFromText(text: string) {
@@ -130,39 +133,66 @@ function extractJsonFromText(text: string) {
     return trimmed;
 }
 
-async function readUpstreamError(response: Response) {
-    const rawText = await response.text();
-    const trimmed = rawText.trim();
+function isAbortError(error: unknown) {
+    return error instanceof Error && error.name === 'AbortError';
+}
 
-    if (!trimmed) {
+function getRetryAfterSecondsFromError(error: unknown) {
+    if (!error || typeof error !== 'object') {
         return undefined;
     }
 
-    try {
-        const parsed = JSON.parse(trimmed) as Record<string, unknown>;
-        const detail =
-            typeof parsed.error === 'string'
-                ? parsed.error
-                : typeof parsed.message === 'string'
-                    ? parsed.message
-                    : typeof parsed.detail === 'string'
-                        ? parsed.detail
-                        : undefined;
+    const candidate = error as {
+        response?: { headers?: Headers };
+        headers?: Headers;
+        retryAfter?: string | number;
+    };
 
-        return detail ?? trimmed;
-    } catch {
-        return trimmed;
+    if (typeof candidate.retryAfter === 'number') {
+        return candidate.retryAfter;
     }
+
+    if (typeof candidate.retryAfter === 'string') {
+        const parsed = Number(candidate.retryAfter);
+        return Number.isFinite(parsed) ? parsed : undefined;
+    }
+
+    return getRetryAfterSecondsFromHeaders(candidate.response?.headers ?? candidate.headers);
+}
+
+function isGeminiRateLimitError(error: unknown) {
+    if (!error) {
+        return false;
+    }
+
+    if (typeof error === 'object') {
+        const candidate = error as {
+            status?: number;
+            code?: number | string;
+            response?: { status?: number };
+            message?: string;
+            cause?: { code?: string; message?: string };
+        };
+
+        if (candidate.status === 429 || candidate.response?.status === 429 || candidate.code === 429) {
+            return true;
+        }
+
+        const message = `${candidate.message ?? ''} ${candidate.cause?.message ?? ''}`.toLowerCase();
+        return message.includes('429') || message.includes('rate limit') || message.includes('resource_exhausted');
+    }
+
+    return false;
 }
 
 export async function POST(request: Request) {
-    const apiKey = getGroqApiKey();
+    const client = getGeminiClient();
 
-    if (!apiKey) {
+    if (!client) {
         return buildJsonError(
             500,
-            'Server configuration error: missing GROQ_API_KEY',
-            { code: 'MISSING_GROQ_API_KEY' },
+            'Server configuration error: missing GEMINI_API_KEY',
+            { code: 'MISSING_GEMINI_API_KEY' },
         );
     }
 
@@ -179,7 +209,7 @@ export async function POST(request: Request) {
     if (!parsedInput.success) {
         return buildJsonError(
             400,
-            'Invalid PDF processing payload',
+            'Invalid PDF processing payload. Expected { text: string }',
             {
                 code: 'INVALID_PDF_PROCESSING_PAYLOAD',
                 issues: parsedInput.error.flatten(),
@@ -187,55 +217,75 @@ export async function POST(request: Request) {
         );
     }
 
-    const prompt = buildSourceText(parsedInput.data);
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
 
     try {
-        const response = await fetch(GROQ_API_URL, {
-            method: 'POST',
-            signal: controller.signal,
-            cache: 'no-store',
-            headers: {
-                Authorization: `Bearer ${apiKey}`,
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                model: GROQ_MODEL,
+        const response = await client.models.generateContent({
+            model: GEMINI_MODEL,
+            contents: parsedInput.data.text,
+            config: {
+                abortSignal: controller.signal,
+                systemInstruction: buildSystemInstruction(),
                 temperature: 0.2,
-                max_tokens: 2048,
-                top_p: 0.9,
-                stream: false,
-                response_format: { type: 'json_object' },
-                messages: [
-                    {
-                        role: 'system',
-                        content: buildSystemPrompt(),
-                    },
-                    {
-                        role: 'user',
-                        content: prompt,
-                    },
-                ],
-            }),
+                topP: 0.9,
+                maxOutputTokens: 2048,
+                responseMimeType: RESPONSE_MIME_TYPE,
+                responseJsonSchema: GEMINI_RESPONSE_JSON_SCHEMA,
+            },
         });
 
-        const retryAfterSeconds = getRetryAfterSeconds(response.headers);
+        const rawText = response.text?.trim() ?? '';
 
-        if (response.status === 429) {
-            const upstreamMessage = await readUpstreamError(response);
+        if (!rawText) {
+            return buildJsonError(502, 'Gemini returned an empty response', {
+                code: 'EMPTY_GEMINI_RESPONSE',
+            });
+        }
 
-            console.error('Groq rate limit response:', upstreamMessage || '[empty body]');
+        const jsonText = extractJsonFromText(rawText);
+        let parsedJson: unknown;
+
+        try {
+            parsedJson = JSON.parse(jsonText);
+        } catch {
+            return buildJsonError(502, 'Gemini returned invalid JSON', {
+                code: 'INVALID_GEMINI_JSON',
+                rawText,
+            });
+        }
+
+        const parsedOutput = processPdfResponseSchema.safeParse(parsedJson);
+
+        if (!parsedOutput.success) {
+            return buildJsonError(502, 'Gemini output did not match the expected schema', {
+                code: 'INVALID_GEMINI_SCHEMA',
+                issues: parsedOutput.error.flatten(),
+                rawText,
+            });
+        }
+
+        return NextResponse.json(parsedOutput.data, { status: 200 });
+    } catch (error) {
+        if (isAbortError(error)) {
+            return buildJsonError(504, 'Gemini request timed out', {
+                code: 'GEMINI_TIMEOUT',
+            });
+        }
+
+        if (isGeminiRateLimitError(error)) {
+            const retryAfterSeconds = getRetryAfterSecondsFromError(error);
+
+            console.error('Gemini rate limit response:', error);
 
             return NextResponse.json(
                 {
                     ok: false,
                     error: {
                         status: 429,
-                        code: 'GROQ_RATE_LIMIT',
-                        message: 'Groq rate limit exceeded. Please retry shortly.',
+                        code: 'GEMINI_RATE_LIMIT',
+                        message: 'Gemini rate limit exceeded. Please retry shortly.',
                         retryAfterSeconds,
-                        details: upstreamMessage || undefined,
                     },
                 },
                 {
@@ -248,72 +298,10 @@ export async function POST(request: Request) {
             );
         }
 
-        if (!response.ok) {
-            const upstreamMessage = await readUpstreamError(response);
-
-            console.error('Groq upstream error:', {
-                status: response.status,
-                body: upstreamMessage || '[empty body]',
-            });
-
-            return buildJsonError(502, 'Groq upstream request failed', {
-                code: 'GROQ_UPSTREAM_ERROR',
-                upstreamStatus: response.status,
-                upstreamBody: upstreamMessage || undefined,
-                retryAfterSeconds,
-            });
-        }
-
-        const responseJson = (await response.json()) as {
-            choices?: Array<{
-                message?: {
-                    content?: string | null;
-                };
-            }>;
-        };
-
-        const rawContent = responseJson.choices?.[0]?.message?.content?.trim();
-
-        if (!rawContent) {
-            return buildJsonError(502, 'Groq returned an empty response', {
-                code: 'EMPTY_GROQ_RESPONSE',
-            });
-        }
-
-        const jsonText = extractJsonFromText(rawContent);
-        let parsedJson: unknown;
-
-        try {
-            parsedJson = JSON.parse(jsonText);
-        } catch {
-            return buildJsonError(502, 'Groq returned invalid JSON', {
-                code: 'INVALID_GROQ_JSON',
-                rawText: rawContent,
-            });
-        }
-
-        const parsedOutput = processPdfResponseSchema.safeParse(parsedJson);
-
-        if (!parsedOutput.success) {
-            return buildJsonError(502, 'Groq output did not match the expected schema', {
-                code: 'INVALID_GROQ_SCHEMA',
-                issues: parsedOutput.error.flatten(),
-                rawText: rawContent,
-            });
-        }
-
-        return NextResponse.json(parsedOutput.data, { status: 200 });
-    } catch (error) {
-        if (error instanceof Error && error.name === 'AbortError') {
-            return buildJsonError(504, 'Groq request timed out', {
-                code: 'GROQ_TIMEOUT',
-            });
-        }
-
         console.error('process-pdf error:', error);
 
         return buildJsonError(500, 'Unable to process document', {
-            code: 'UNHANDLED_GROQ_ERROR',
+            code: 'UNHANDLED_GEMINI_ERROR',
         });
     } finally {
         clearTimeout(timeout);

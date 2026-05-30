@@ -143,23 +143,13 @@ export async function POST(request: Request) {
 
             console.error('Hugging Face API Error Details:', errorBody || '[empty body]');
 
-            return NextResponse.json(
+            return buildJsonError(
+                429,
+                'Hugging Face rate limit exceeded. Please retry shortly.',
                 {
-                    ok: false,
-                    error: {
-                        status: 429,
-                        code: 'HUGGING_FACE_RATE_LIMIT',
-                        message: 'Hugging Face rate limit exceeded. Please retry shortly.',
-                        retryAfterSeconds,
-                        details: errorBody || undefined,
-                    },
-                },
-                {
-                    status: 429,
-                    headers:
-                        typeof retryAfterSeconds === 'number'
-                            ? { 'Retry-After': String(retryAfterSeconds) }
-                            : undefined,
+                    code: 'HUGGING_FACE_RATE_LIMIT',
+                    retryAfterSeconds,
+                    details: errorBody || undefined,
                 },
             );
         }
@@ -224,10 +214,13 @@ export async function POST(request: Request) {
 
         // 🧠 TERMINAL CLEANER FIX BOUNDARY
         if (isNetworkFetchFailure(error)) {
-            // console.error() দিয়ে পুরো অবজেক্ট পাস করার পরিবর্তে শুধু ১ লাইনের ক্লিন ওয়ার্নিং দেওয়া হলো
-            console.warn('⚠️  Hugging Face offline (DNS/Network). Serving instant browser fallback.');
+            console.warn('⚠️  Hugging Face offline (DNS/Network).');
 
-            return NextResponse.json({ fallbackToBrowser: true }, { status: 200 });
+            return buildJsonError(
+                503,
+                'Hugging Face is offline or unreachable',
+                { code: 'HUGGING_FACE_OFFLINE' },
+            );
         }
 
         console.error('generate-audio error:', error);
