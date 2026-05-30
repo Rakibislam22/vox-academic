@@ -8,6 +8,7 @@ const HUGGING_FACE_ENDPOINT = process.env.HUGGINGFACE_TTS_ENDPOINT?.trim();
 const HUGGING_FACE_URL =
     HUGGING_FACE_ENDPOINT || `https://api-inference.huggingface.co/models/${HUGGING_FACE_MODEL}`;
 const REQUEST_TIMEOUT_MS = 45_000;
+const DEFAULT_AUDIO_CONTENT_TYPE = 'audio/mpeg';
 
 const generateAudioRequestSchema = z
     .object({
@@ -47,7 +48,7 @@ function buildJsonError(status: number, message: string, details?: Record<string
 }
 
 function getHuggingFaceToken() {
-    const token = process.env.HUGGINGFACE_API_TOKEN;
+    const token = process.env.HF_ACCESS_TOKEN;
 
     if (!token || !token.trim()) {
         return null;
@@ -75,8 +76,8 @@ export async function POST(request: Request) {
     if (!token) {
         return buildJsonError(
             500,
-            'Server configuration error: missing HUGGINGFACE_API_TOKEN',
-            { code: 'MISSING_HUGGINGFACE_API_TOKEN' },
+            'Server configuration error: missing HF_ACCESS_TOKEN',
+            { code: 'MISSING_HF_ACCESS_TOKEN' },
         );
     }
 
@@ -100,17 +101,29 @@ export async function POST(request: Request) {
                 Authorization: `Bearer ${token}`,
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ text: parsedBody.text }),
+            body: JSON.stringify({ inputs: parsedBody.text }),
             signal: controller.signal,
             cache: 'no-store',
         });
 
         const retryAfterSeconds = getRetryAfterSeconds(upstreamResponse.headers);
+        const upstreamContentType = upstreamResponse.headers.get('content-type') || '';
+        const upstreamContentLength = upstreamResponse.headers.get('content-length');
+        const upstreamHeaders = Object.fromEntries(upstreamResponse.headers.entries());
+
+        console.log('Hugging Face API response metadata:', {
+            status: upstreamResponse.status,
+            statusText: upstreamResponse.statusText,
+            ok: upstreamResponse.ok,
+            contentType: upstreamContentType || undefined,
+            contentLength: upstreamContentLength || undefined,
+            headers: upstreamHeaders,
+        });
 
         if (upstreamResponse.status === 429) {
-            const upstreamRateLimitMessage = await upstreamResponse.text();
+            const errorBody = await upstreamResponse.text();
 
-            console.error('Hugging Face 429 response:', upstreamRateLimitMessage || '[empty body]');
+            console.error('Hugging Face API Error Details:', errorBody || '[empty body]');
 
             return NextResponse.json(
                 {
@@ -120,7 +133,7 @@ export async function POST(request: Request) {
                         code: 'HUGGING_FACE_RATE_LIMIT',
                         message: 'Hugging Face rate limit exceeded. Please retry shortly.',
                         retryAfterSeconds,
-                        details: upstreamRateLimitMessage || undefined,
+                        details: errorBody || undefined,
                     },
                 },
                 {
@@ -134,11 +147,15 @@ export async function POST(request: Request) {
         }
 
         if (!upstreamResponse.ok) {
-            const upstreamMessage = await upstreamResponse.text();
+            const errorBody = await upstreamResponse.text();
 
-            console.error('Hugging Face upstream error:', {
+            console.error('Hugging Face API Error Details:', errorBody || '[empty body]');
+            console.error('Hugging Face upstream error metadata:', {
                 status: upstreamResponse.status,
-                body: upstreamMessage || '[empty body]',
+                statusText: upstreamResponse.statusText,
+                contentType: upstreamContentType || undefined,
+                contentLength: upstreamContentLength || undefined,
+                headers: upstreamHeaders,
             });
 
             return buildJsonError(
@@ -147,13 +164,18 @@ export async function POST(request: Request) {
                 {
                     code: 'HUGGING_FACE_UPSTREAM_ERROR',
                     upstreamStatus: upstreamResponse.status,
-                    upstreamBody: upstreamMessage || undefined,
+                    upstreamBody: errorBody || undefined,
                     retryAfterSeconds,
                 },
             );
         }
 
-        const contentType = upstreamResponse.headers.get('content-type') || 'audio/mpeg';
+        const responseContentType = upstreamContentType.toLowerCase();
+        const audioContentType =
+            responseContentType.includes('audio/wav') || responseContentType.includes('audio/x-wav')
+                ? 'audio/wav'
+                : DEFAULT_AUDIO_CONTENT_TYPE;
+
         const audioBuffer = await upstreamResponse.arrayBuffer();
         const audioBytes = new Uint8Array(audioBuffer);
 
@@ -165,13 +187,11 @@ export async function POST(request: Request) {
             );
         }
 
-        const contentLength = upstreamResponse.headers.get('content-length');
-
         return new NextResponse(audioBytes, {
             status: 200,
             headers: {
-                'Content-Type': contentType,
-                ...(contentLength ? { 'Content-Length': contentLength } : {}),
+                'Content-Type': audioContentType,
+                ...(upstreamContentLength ? { 'Content-Length': upstreamContentLength } : {}),
                 'Cache-Control': 'no-store',
             },
         });
