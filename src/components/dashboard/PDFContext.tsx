@@ -14,6 +14,8 @@ interface PDFContextType {
   setDocumentSummary: (summary: string) => void;
   cleanedTextForSpeech: string;
   setCleanedTextForSpeech: (text: string) => void;
+  uploadedPdfFile: File | null;
+  setUploadedPdfFile: (file: File | null) => void;
   speech: SpeechSyncState;
 }
 
@@ -29,6 +31,7 @@ export function PDFProvider({ children }: { children: ReactNode }) {
     'The uploaded document will appear here once text is extracted.',
   );
   const [cleanedTextForSpeech, setCleanedTextForSpeech] = useState('');
+  const [uploadedPdfFile, setUploadedPdfFile] = useState<File | null>(null);
 
   const speech = useSpeechSynthesisSync(cleanedTextForSpeech);
 
@@ -45,6 +48,8 @@ export function PDFProvider({ children }: { children: ReactNode }) {
         setDocumentSummary,
         cleanedTextForSpeech,
         setCleanedTextForSpeech,
+        uploadedPdfFile,
+        setUploadedPdfFile,
         speech,
       }}
     >
