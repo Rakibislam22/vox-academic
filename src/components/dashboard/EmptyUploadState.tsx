@@ -2,17 +2,14 @@
 
 import { useRef, useState } from 'react';
 import { Upload, Globe, FileText, ArrowRight, Loader2 } from 'lucide-react';
-import { GlobalWorkerOptions, getDocument } from 'pdfjs-dist/legacy/build/pdf.mjs';
+import { GlobalWorkerOptions, getDocument } from 'pdfjs-dist/build/pdf.mjs';
 import { usePDFContext } from './PDFContext';
 
 interface EmptyUploadStateProps {
   onUploadSuccess: () => void;
 }
 
-GlobalWorkerOptions.workerSrc = new URL(
-  'pdfjs-dist/legacy/build/pdf.worker.min.mjs',
-  import.meta.url,
-).toString();
+GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs';
 
 async function extractPdfText(file: File) {
   const pdfData = await file.arrayBuffer();

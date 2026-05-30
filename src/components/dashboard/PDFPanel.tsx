@@ -1,6 +1,9 @@
 'use client';
 
+import { GlobalWorkerOptions } from 'pdfjs-dist/build/pdf.mjs';
 import { usePDFContext } from './PDFContext';
+
+GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs';
 
 export default function PDFPanel() {
   const { cleanedTextForSpeech, documentSummary, documentTitle, speech } = usePDFContext();
