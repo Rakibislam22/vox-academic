@@ -3,6 +3,7 @@
 import dynamic from 'next/dynamic';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { usePDFContext } from '@/components/dashboard/PDFContext';
+import { fetchGeneratedAudio } from '@/components/dashboard/audioApi';
 
 const PDFPanel = dynamic(() => import('@/components/dashboard/PDFPanel'), { ssr: false });
 const SummaryPanel = dynamic(() => import('@/components/dashboard/SummaryPanel'), { ssr: false });
@@ -11,46 +12,26 @@ const EmptyUploadState = dynamic(() => import('@/components/dashboard/EmptyUploa
   ssr: false,
 });
 
+type TtsVoice = 'en-US-AndrewNeural' | 'en-US-EmmaNeural';
+
 export default function DashboardPage() {
-  const { cleanedTextForSpeech, speech } = usePDFContext();
+  const { cleanedTextForSpeech } = usePDFContext();
   const [activeMobileTab, setActiveMobileTab] = useState<'pdf' | 'insights'>('pdf');
-  const [playbackMode, setPlaybackMode] = useState<'stream' | 'browser'>('stream');
   const [hasFile, setHasFile] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [playbackSpeed, setPlaybackSpeed] = useState(1);
   const [isLoadingAudio, setIsLoadingAudio] = useState(false);
+  const [audioError, setAudioError] = useState<string | null>(null);
+  const [selectedVoice, setSelectedVoice] = useState<TtsVoice>('en-US-AndrewNeural');
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const audioUrlCacheRef = useRef<Map<string, string>>(new Map());
   const loadedTextRef = useRef('');
 
   const textForAudio = useMemo(() => cleanedTextForSpeech.trim(), [cleanedTextForSpeech]);
-  const browserWordCount = speech.words.length;
-  const estimatedBrowserDuration = useMemo(() => {
-    if (!textForAudio || browserWordCount === 0) {
-      return 0;
-    }
-
-    const secondsPerWord = 0.45;
-    return Math.max(5, (browserWordCount * secondsPerWord) / Math.max(playbackSpeed, 0.5));
-  }, [browserWordCount, playbackSpeed, textForAudio]);
-
-  const browserCurrentTime = useMemo(() => {
-    if (estimatedBrowserDuration === 0 || browserWordCount === 0) {
-      return 0;
-    }
-
-    const completedWords =
-      speech.activeWordIndex >= 0 ? Math.min(speech.activeWordIndex + 1, browserWordCount) : 0;
-    const progress = completedWords / browserWordCount;
-
-    return Math.min(estimatedBrowserDuration, progress * estimatedBrowserDuration);
-  }, [browserWordCount, estimatedBrowserDuration, speech.activeWordIndex]);
-
-  const displayCurrentTime = playbackMode === 'browser' ? browserCurrentTime : currentTime;
-  const displayDuration = playbackMode === 'browser' ? estimatedBrowserDuration : duration;
+  const audioCacheKey = `${selectedVoice}::${textForAudio}`;
 
   const handleFileSelect = useCallback(() => {
     setHasFile(true);
@@ -118,8 +99,7 @@ export default function DashboardPage() {
     }
 
     audioRef.current.playbackRate = playbackSpeed;
-    speech.setRate(playbackSpeed);
-  }, [playbackSpeed, speech]);
+  }, [playbackSpeed]);
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -134,80 +114,53 @@ export default function DashboardPage() {
     setDuration(0);
     audio.currentTime = 0;
     loadedTextRef.current = '';
-    setPlaybackMode('stream');
-    speech.stop();
-  }, [speech, textForAudio]);
+    setAudioError(null);
+  }, [textForAudio, selectedVoice]);
 
-  const ensureAudioSource = useCallback(async (): Promise<'stream' | 'browser' | false> => {
+  const ensureAudioSource = useCallback(async (): Promise<boolean> => {
     const audio = audioRef.current;
 
     if (!audio || !textForAudio) {
       return false;
     }
 
-    if (loadedTextRef.current === textForAudio && audio.src) {
-      return 'stream';
+    if (loadedTextRef.current === audioCacheKey && audio.src) {
+      return true;
     }
 
-    const cachedUrl = audioUrlCacheRef.current.get(textForAudio);
+    const cachedUrl = audioUrlCacheRef.current.get(audioCacheKey);
 
     if (cachedUrl) {
       audio.src = cachedUrl;
       audio.load();
-      loadedTextRef.current = textForAudio;
-      return 'stream';
+      loadedTextRef.current = audioCacheKey;
+      return true;
     }
 
+    setAudioError(null);
     setIsLoadingAudio(true);
 
     try {
-      const response = await fetch('/api/generate-audio', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ text: textForAudio }),
-      });
-
-      const responseContentType = response.headers.get('content-type') || '';
-
-      if (responseContentType.includes('application/json')) {
-        const responseBody = (await response.json().catch(() => null)) as {
-          error?: { message?: string };
-        } | null;
-
-        throw new Error(responseBody?.error?.message || 'Audio generation failed');
-      }
-
-      if (!response.ok) {
-        throw new Error(`Audio generation failed with status ${response.status}`);
-      }
-
-      const audioBlob = await response.blob();
+      const audioBlob = await fetchGeneratedAudio(textForAudio, selectedVoice);
       const objectUrl = URL.createObjectURL(audioBlob);
 
-      audioUrlCacheRef.current.set(textForAudio, objectUrl);
+      audioUrlCacheRef.current.set(audioCacheKey, objectUrl);
       audio.src = objectUrl;
       audio.load();
-      loadedTextRef.current = textForAudio;
-      setPlaybackMode('stream');
+      loadedTextRef.current = audioCacheKey;
 
-      return 'stream';
+      return true;
     } catch (error) {
       console.error('Failed to load audio stream:', error);
+      setAudioError(error instanceof Error ? error.message : 'Audio loading failed');
       return false;
     } finally {
       setIsLoadingAudio(false);
     }
-  }, [textForAudio]);
+  }, [audioCacheKey, selectedVoice, textForAudio]);
 
   const handlePlayPause = useCallback(async () => {
     const audio = audioRef.current;
-
-    if (playbackMode === 'browser') {
-      speech.toggle();
-      return;
-    }
 
     if (!audio) {
       return;
@@ -236,30 +189,12 @@ export default function DashboardPage() {
     } catch (error) {
       setIsPlaying(false);
       console.error('Audio play failed:', error);
+      setAudioError(error instanceof Error ? error.message : 'Audio play failed');
     }
-  }, [ensureAudioSource, isPlaying, playbackMode, speech, textForAudio]);
+  }, [ensureAudioSource, isPlaying, textForAudio]);
 
   const handleSeek = useCallback(
     (nextTime: number) => {
-      if (playbackMode === 'browser') {
-        if (estimatedBrowserDuration === 0 || browserWordCount === 0) {
-          return;
-        }
-
-        const safeTime = Math.max(0, Math.min(nextTime, estimatedBrowserDuration));
-        const targetWordIndex = Math.max(
-          0,
-          Math.min(
-            Math.round((safeTime / estimatedBrowserDuration) * (browserWordCount - 1)),
-            browserWordCount - 1,
-          ),
-        );
-
-        speech.stop();
-        speech.speakFromWordIndex(targetWordIndex);
-        return;
-      }
-
       const audio = audioRef.current;
 
       if (!audio) {
@@ -270,37 +205,11 @@ export default function DashboardPage() {
       audio.currentTime = safeTime;
       setCurrentTime(safeTime);
     },
-    [browserWordCount, estimatedBrowserDuration, duration, playbackMode, speech],
-  );
-
-  const handleBrowserSkip = useCallback(
-    (offsetWords: number) => {
-      if (playbackMode !== 'browser' || !textForAudio) {
-        return;
-      }
-
-      const totalWords = speech.words.length;
-
-      if (totalWords === 0) {
-        return;
-      }
-
-      const currentWordIndex = speech.activeWordIndex >= 0 ? speech.activeWordIndex : 0;
-      const nextWordIndex = Math.max(0, Math.min(currentWordIndex + offsetWords, totalWords - 1));
-
-      speech.stop();
-      speech.speakFromWordIndex(nextWordIndex);
-    },
-    [playbackMode, speech, textForAudio],
+    [duration],
   );
 
   const handleSkipBy = useCallback(
     (offsetSeconds: number) => {
-      if (playbackMode === 'browser') {
-        handleBrowserSkip(offsetSeconds >= 0 ? 10 : -10);
-        return;
-      }
-
       const audio = audioRef.current;
 
       if (!audio) {
@@ -311,7 +220,7 @@ export default function DashboardPage() {
       audio.currentTime = safeTime;
       setCurrentTime(safeTime);
     },
-    [duration, handleBrowserSkip, playbackMode],
+    [duration],
   );
 
   return (
@@ -331,21 +240,19 @@ export default function DashboardPage() {
                   <div className="grid grid-cols-2 gap-1">
                     <button
                       onClick={() => setActiveMobileTab('pdf')}
-                      className={`rounded-xl px-4 py-2 text-sm font-medium transition-transform active:scale-95 ${
-                        activeMobileTab === 'pdf'
-                          ? 'bg-white/8 text-white shadow-[0_0_20px_rgba(26,140,255,0.14)]'
-                          : 'text-slate-400'
-                      }`}
+                      className={`rounded-xl px-4 py-2 text-sm font-medium transition-transform active:scale-95 ${activeMobileTab === 'pdf'
+                        ? 'bg-white/8 text-white shadow-[0_0_20px_rgba(26,140,255,0.14)]'
+                        : 'text-slate-400'
+                        }`}
                     >
                       PDF View
                     </button>
                     <button
                       onClick={() => setActiveMobileTab('insights')}
-                      className={`rounded-xl px-4 py-2 text-sm font-medium transition-transform active:scale-95 ${
-                        activeMobileTab === 'insights'
-                          ? 'bg-white/8 text-white shadow-[0_0_20px_rgba(26,140,255,0.14)]'
-                          : 'text-slate-400'
-                      }`}
+                      className={`rounded-xl px-4 py-2 text-sm font-medium transition-transform active:scale-95 ${activeMobileTab === 'insights'
+                        ? 'bg-white/8 text-white shadow-[0_0_20px_rgba(26,140,255,0.14)]'
+                        : 'text-slate-400'
+                        }`}
                     >
                       AI Insights
                     </button>
@@ -371,33 +278,26 @@ export default function DashboardPage() {
 
           {hasFile && (
             <div className="w-full shrink-0 border-t border-white/5 bg-[#070a13]/90 px-6 py-3 backdrop-blur-2xl">
+              {audioError && (
+                <div className="mb-3 rounded-lg border border-rose-400/30 bg-rose-500/10 px-3 py-2 text-sm text-rose-200">
+                  Audio failed: {audioError}
+                </div>
+              )}
               <ControlBar
-                isPlaying={playbackMode === 'browser' ? speech.status === 'playing' : isPlaying}
+                isPlaying={isPlaying}
                 isLoadingAudio={isLoadingAudio}
-                currentTime={displayCurrentTime}
-                duration={displayDuration}
+                currentTime={currentTime}
+                duration={duration}
                 playbackSpeed={playbackSpeed}
-                playbackMode={playbackMode}
+                playbackMode="stream"
                 hasText={Boolean(textForAudio)}
                 onPlayPause={handlePlayPause}
-                onSkipBackward={() => {
-                  if (playbackMode === 'browser') {
-                    handleBrowserSkip(-10);
-                    return;
-                  }
-
-                  handleSkipBy(-10);
-                }}
-                onSkipForward={() => {
-                  if (playbackMode === 'browser') {
-                    handleBrowserSkip(10);
-                    return;
-                  }
-
-                  handleSkipBy(10);
-                }}
+                onSkipBackward={() => handleSkipBy(-10)}
+                onSkipForward={() => handleSkipBy(10)}
                 onSeek={handleSeek}
                 onSpeedChange={setPlaybackSpeed}
+                selectedVoice={selectedVoice}
+                onVoiceChange={(voice) => setSelectedVoice(voice as TtsVoice)}
               />
             </div>
           )}

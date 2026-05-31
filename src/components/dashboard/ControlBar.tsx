@@ -15,6 +15,8 @@ interface ControlBarProps {
   onSkipForward: () => void;
   onSeek: (nextTime: number) => void;
   onSpeedChange: (speed: number) => void;
+  selectedVoice?: string;
+  onVoiceChange?: (voice: string) => void;
   showFallbackToast?: boolean;
 }
 
@@ -39,6 +41,8 @@ export default function ControlBar({
   onSkipForward,
   onSeek,
   onSpeedChange,
+  selectedVoice,
+  onVoiceChange,
   showFallbackToast,
 }: ControlBarProps) {
   const canControl = hasText && (!isLoadingAudio || playbackMode === 'browser');
@@ -143,6 +147,29 @@ export default function ControlBar({
             </div>
 
             <div className="flex min-w-0 flex-col items-stretch gap-1.5 lg:items-end">
+              <div className="flex w-full items-center justify-end gap-2 text-[10px] uppercase tracking-[0.16em] text-slate-400">
+                <span>Voice</span>
+                <div
+                  className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5"
+                  style={{ minWidth: '168px' }}
+                >
+                  <select
+                    value={selectedVoice ?? 'en-US-AndrewNeural'}
+                    onChange={(event) => onVoiceChange?.(event.target.value)}
+                    className="w-full bg-transparent text-[11px] font-medium tracking-[0.02em] text-slate-200 outline-none"
+                    disabled={!hasText || !onVoiceChange}
+                    aria-label="Select voice"
+                  >
+                    <option value="en-US-AndrewNeural" className="bg-slate-900 text-slate-100">
+                      Andrew (US)
+                    </option>
+                    <option value="en-US-EmmaNeural" className="bg-slate-900 text-slate-100">
+                      Emma (US)
+                    </option>
+                  </select>
+                </div>
+              </div>
+
               <div className="flex w-full items-center justify-end gap-2 text-[10px] uppercase tracking-[0.16em] text-slate-400">
                 <span>Speed</span>
                 <div
