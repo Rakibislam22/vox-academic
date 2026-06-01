@@ -41,6 +41,7 @@ export interface AudioReaderState {
     setPlaybackSpeed: (nextSpeed: number) => void;
     setRate: (nextRate: number) => void;
     setSelectedVoice: (voiceNameOrUri: string) => void;
+    seekToTime: (nextTime: number) => void;
     speakFromWordIndex: (wordIndex: number) => void;
 }
 
@@ -654,6 +655,54 @@ export function useAudioReader(rawText: string, preferredVoiceHint = ''): AudioR
         setVoiceOverride(voiceNameOrUri);
     }, []);
 
+    const seekToTime = useCallback(
+        (nextTime: number) => {
+            if (!isSupported || !cleanedText.trim() || tokens.length === 0) {
+                return;
+            }
+
+            const safeTime = clamp(nextTime, 0, duration);
+            const safeDuration = Math.max(duration, 1);
+            const estimatedWordIndex = Math.min(
+                tokens.length - 1,
+                Math.max(0, Math.floor((safeTime / safeDuration) * tokens.length)),
+            );
+            const targetToken = tokens[estimatedWordIndex];
+
+            if (!targetToken) {
+                return;
+            }
+
+            const shouldResume = status === 'playing';
+
+            utteranceSequenceRef.current += 1;
+            utteranceRef.current = null;
+            playbackAnchorRef.current = null;
+
+            if (typeof window !== 'undefined' && window.speechSynthesis.speaking) {
+                window.speechSynthesis.cancel();
+            }
+
+            if (progressFrameRef.current !== null && typeof window !== 'undefined') {
+                window.cancelAnimationFrame(progressFrameRef.current);
+                progressFrameRef.current = null;
+            }
+
+            activeWordIndexRef.current = targetToken.wordIndex ?? estimatedWordIndex;
+            setActiveWordIndex(targetToken.wordIndex ?? estimatedWordIndex);
+            setCurrentWord(targetToken.text);
+            setCurrentWordRange({ start: targetToken.start, end: targetToken.end });
+            updateProgress(safeTime);
+
+            if (shouldResume) {
+                speakFromWordIndex(targetToken.wordIndex ?? estimatedWordIndex);
+            } else {
+                setStatus('paused');
+            }
+        },
+        [cleanedText, duration, isSupported, speakFromWordIndex, status, tokens, updateProgress],
+    );
+
     const currentWordAtIndex = activeWordIndex >= 0 ? tokens[activeWordIndex] ?? null : null;
 
     return {
@@ -680,6 +729,7 @@ export function useAudioReader(rawText: string, preferredVoiceHint = ''): AudioR
         setPlaybackSpeed,
         setRate: setPlaybackSpeed,
         setSelectedVoice,
+        seekToTime,
         speakFromWordIndex,
     };
 }

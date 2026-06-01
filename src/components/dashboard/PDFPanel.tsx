@@ -3,11 +3,10 @@
 import {
   GlobalWorkerOptions,
   getDocument,
-  type PDFDocumentProxy,
   type PDFPageProxy,
-  type RenderTask,
+  type PDFDocumentProxy,
 } from 'pdfjs-dist/legacy/build/pdf.mjs';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { usePDFContext } from './PDFContext';
 
 GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs';
@@ -33,50 +32,11 @@ function sanitizePageText(rawText: string) {
     .trim();
 }
 
-function useElementWidth<T extends HTMLElement>() {
-  const elementRef = useRef<T | null>(null);
-  const [width, setWidth] = useState(0);
-
-  useEffect(() => {
-    const element = elementRef.current;
-
-    if (!element || typeof ResizeObserver === 'undefined') {
-      return;
-    }
-
-    let frame = 0;
-    const observer = new ResizeObserver((entries) => {
-      const nextWidth = entries[0]?.contentRect.width ?? 0;
-
-      if (frame) {
-        window.cancelAnimationFrame(frame);
-      }
-
-      frame = window.requestAnimationFrame(() => {
-        setWidth(nextWidth);
-        frame = 0;
-      });
-    });
-
-    observer.observe(element);
-
-    setWidth(element.getBoundingClientRect().width);
-
-    return () => {
-      observer.disconnect();
-
-      if (frame) {
-        window.cancelAnimationFrame(frame);
-      }
-    };
-  }, []);
-
-  return { elementRef, width };
-}
+const wordTokenClass =
+  'inline-flex items-center rounded px-0.5 transition-all duration-200 ease-out';
 
 export default function PDFPanel() {
   const {
-    cleanedTextForSpeech,
     currentSentence,
     speech,
     uploadedPdfFile,
@@ -84,20 +44,20 @@ export default function PDFPanel() {
     setCurrentSentence,
   } = usePDFContext();
 
-  const { elementRef: viewportRef, width: viewportWidth } = useElementWidth<HTMLDivElement>();
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const documentRef = useRef<PDFDocumentProxy | null>(null);
-  const renderTaskRef = useRef<RenderTask | null>(null);
   const pageTextCacheRef = useRef<Map<number, string>>(new Map());
 
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(0);
   const [isDocumentLoading, setIsDocumentLoading] = useState(false);
-  const [isPageRendering, setIsPageRendering] = useState(false);
   const [documentError, setDocumentError] = useState('');
 
   const hasPdfFile = Boolean(uploadedPdfFile);
-  const hasSpeechText = cleanedTextForSpeech.trim().length > 0;
+  const readingTokens = useMemo(
+    () => speech.tokens as Array<{ text: string; start: number; end: number }>,
+    [speech.tokens],
+  );
+  const currentWordLabel = speech.currentWord || readingTokens[speech.activeWordIndex]?.text || '';
 
   const goToPage = useCallback(
     (nextPage: number) => {
@@ -128,7 +88,6 @@ export default function PDFPanel() {
       }
 
       setDocumentError('');
-      setIsPageRendering(false);
       setCurrentPage(1);
       setTotalPages(0);
       pageTextCacheRef.current.clear();
@@ -188,32 +147,19 @@ export default function PDFPanel() {
 
   useEffect(() => {
     const pdfDocument = documentRef.current;
-    const canvas = canvasRef.current;
 
-    if (!pdfDocument || !canvas || currentPage < 1 || currentPage > totalPages) {
+    if (!pdfDocument || currentPage < 1 || currentPage > totalPages) {
       return undefined;
     }
 
     let cancelled = false;
 
-    const renderCurrentPage = async () => {
-      setIsPageRendering(true);
-      setDocumentError('');
-
-      if (renderTaskRef.current) {
-        renderTaskRef.current.cancel();
-        renderTaskRef.current = null;
-      }
-
+    const loadCurrentPageText = async () => {
       try {
-        const [page, textContent] = await Promise.all([
-          pdfDocument.getPage(currentPage),
-          pageTextCacheRef.current.has(currentPage)
-            ? Promise.resolve(null)
-            : pdfDocument
-                .getPage(currentPage)
-                .then((pageProxy: PDFPageProxy) => pageProxy.getTextContent()),
-        ]);
+        const page = await pdfDocument.getPage(currentPage);
+        const textContent = pageTextCacheRef.current.has(currentPage)
+          ? null
+          : await page.getTextContent();
 
         if (cancelled) {
           return;
@@ -229,57 +175,23 @@ export default function PDFPanel() {
 
         setCurrentSentence(pageText);
         setCleanedTextForSpeech(pageText);
-
-        const context = canvas.getContext('2d');
-
-        if (!context) {
-          throw new Error('Unable to initialize the PDF canvas context.');
-        }
-
-        const baseViewport = page.getViewport({ scale: 1 });
-        const availableWidth =
-          viewportWidth > 0 ? Math.max(viewportWidth - 2, 0) : baseViewport.width;
-        const responsiveScale = Math.min(2.25, Math.max(0.75, availableWidth / baseViewport.width));
-        const outputScale = window.devicePixelRatio || 1;
-        const viewport = page.getViewport({ scale: responsiveScale * outputScale });
-
-        canvas.width = Math.floor(viewport.width);
-        canvas.height = Math.floor(viewport.height);
-        canvas.style.width = `${Math.floor(viewport.width / outputScale)}px`;
-        canvas.style.height = `${Math.floor(viewport.height / outputScale)}px`;
-
-        const renderTask = page.render({ canvasContext: context, canvas, viewport });
-        renderTaskRef.current = renderTask;
-
-        await renderTask.promise;
       } catch (error) {
         if (!cancelled) {
-          if (error instanceof Error && error.name !== 'RenderingCancelledException') {
-            console.error('Failed to render PDF page:', error);
-            setDocumentError(error.message || 'Failed to render the PDF page.');
-          }
-        }
-      } finally {
-        if (!cancelled) {
-          setIsPageRendering(false);
+          console.error('Failed to load PDF page text:', error);
+          setDocumentError(error instanceof Error ? error.message : 'Failed to load the PDF page.');
         }
       }
     };
 
-    void renderCurrentPage();
+    void loadCurrentPageText();
 
     return () => {
       cancelled = true;
-
-      if (renderTaskRef.current) {
-        renderTaskRef.current.cancel();
-        renderTaskRef.current = null;
-      }
     };
-  }, [currentPage, setCleanedTextForSpeech, setCurrentSentence, totalPages, viewportWidth]);
+  }, [currentPage, setCleanedTextForSpeech, setCurrentSentence, totalPages]);
 
   return (
-    <div className="flex flex-col h-full w-full rounded-2xl border border-white/5 bg-slate-900/20 p-5 backdrop-blur-xl overflow-hidden">
+    <div className="flex h-full w-full flex-col overflow-hidden rounded-2xl border border-white/5 bg-slate-900/20 p-5 backdrop-blur-xl">
       <div className="border-b border-white/10 bg-white/5 px-5 py-4 sm:px-6 sm:py-5">
         <div className="flex flex-col gap-3">
           <div className="flex flex-wrap items-start justify-between gap-3">
@@ -299,11 +211,11 @@ export default function PDFPanel() {
           <div className="flex flex-wrap items-center gap-2 text-xs text-slate-400">
             <span>
               {speech.words.length
-                ? `${speech.words.length} spoken words`
+                ? `${speech.words.length} tracked words`
                 : 'Awaiting synced page text'}
             </span>
             <span className="h-1 w-1 rounded-full bg-white/20" />
-            <span>{speech.status === 'playing' ? 'Live sync active' : 'Ready for playback'}</span>
+            <span>{speech.isPlaying ? 'Live sync active' : 'Ready for playback'}</span>
             <span className="h-1 w-1 rounded-full bg-white/20" />
             <span>
               {currentSentence.trim().length
@@ -314,7 +226,7 @@ export default function PDFPanel() {
         </div>
       </div>
 
-      <div className="flex flex-1 min-h-0 flex-col overflow-hidden">
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
         <div className="flex items-center justify-between gap-3 border-b border-white/10 bg-white/5 px-5 py-4 sm:px-6">
           <div className="flex items-center gap-2">
             <button
@@ -340,18 +252,13 @@ export default function PDFPanel() {
 
           <div className="flex items-center gap-2">
             <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-medium text-slate-300 shadow-inner">
-              {isDocumentLoading
-                ? 'Loading document'
-                : isPageRendering
-                  ? 'Rendering page'
-                  : 'Viewer ready'}
+              {isDocumentLoading ? 'Loading document' : 'Viewer ready'}
             </span>
           </div>
         </div>
 
         <div
-          ref={viewportRef}
-          className="flex-1 min-h-0 w-full overflow-y-auto rounded-xl bg-slate-950/40 p-4 border border-white/5 flex justify-center items-start"
+          className="flex min-h-0 flex-1 justify-center overflow-y-auto rounded-xl border border-white/5 bg-slate-950/40 p-4"
         >
           <div className="relative flex w-full min-h-full justify-center">
             <div className="relative w-full max-w-full overflow-hidden rounded-2xl border border-white/10 bg-[#08111f]/80 p-3 shadow-[0_0_0_1px_rgba(255,255,255,0.03),0_24px_80px_rgba(0,0,0,0.4)] backdrop-blur-xl sm:p-4">
@@ -366,8 +273,8 @@ export default function PDFPanel() {
                   <div className="max-w-md">
                     <p className="text-lg font-semibold text-white">No PDF selected yet</p>
                     <p className="mt-2 text-sm leading-6 text-slate-400">
-                      Upload a PDF from the left panel to render pages, extract the visible page
-                      text, and sync the current page into the audio pipeline.
+                      Upload a PDF from the left panel to extract page text and sync the visible
+                      reading surface into the audio reader.
                     </p>
                   </div>
                 </div>
@@ -379,16 +286,49 @@ export default function PDFPanel() {
                       Loading PDF
                     </p>
                     <p className="mt-2 text-sm text-slate-400">
-                      Preparing the document for responsive canvas rendering and text extraction.
+                      Preparing page text for responsive reading and karaoke sync.
                     </p>
                   </div>
                 </div>
               ) : (
-                <div className="flex min-h-104 justify-center rounded-2xl bg-[#0b1220] p-3 sm:p-4">
-                  <canvas
-                    ref={canvasRef}
-                    className="block max-w-full rounded-xl border border-white/10 bg-white shadow-[0_24px_80px_rgba(0,0,0,0.35)]"
-                  />
+                <div className="flex min-h-104 flex-col rounded-2xl bg-[#0b1220] p-4 sm:p-5">
+                  <div className="mb-4 flex flex-wrap items-center justify-between gap-3 border-b border-white/10 pb-3 text-xs text-slate-400">
+                    <span>
+                      {speech.status === 'playing'
+                        ? `Speaking word ${Math.max(speech.activeWordIndex + 1, 1)}`
+                        : 'Ready to sync'}
+                    </span>
+                    <span>{speech.currentWord || currentWordLabel || 'Listening for word boundaries'}</span>
+                  </div>
+
+                  <div className="min-h-0 flex-1 overflow-y-auto rounded-2xl border border-white/10 bg-slate-950/40 p-4 sm:p-5">
+                    {readingTokens.length > 0 ? (
+                      <p className="text-pretty text-[1.03rem] leading-9 text-slate-200 sm:text-[1.08rem] sm:leading-10">
+                        {readingTokens.map((token, index) => {
+                          const isActive = index === speech.activeWordIndex;
+
+                          return (
+                            <span
+                              key={`${token.start}-${token.end}-${index}`}
+                              className={`${wordTokenClass} ${isActive ? 'bg-sky-500/20 text-sky-400 shadow-[0_0_0_1px_rgba(56,189,248,0.2)]' : 'text-slate-200/90'}`}
+                            >
+                              {token.text}
+                              {index < readingTokens.length - 1 ? ' ' : ''}
+                            </span>
+                          );
+                        })}
+                      </p>
+                    ) : (
+                      <div className="flex min-h-64 items-center justify-center text-center text-sm text-slate-400">
+                        <div className="max-w-md">
+                          <p className="text-base font-medium text-white">No readable text yet</p>
+                          <p className="mt-2 leading-6">
+                            Move to a page with extracted text to enable the synced reading view.
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
             </div>
@@ -398,12 +338,12 @@ export default function PDFPanel() {
         <div className="border-t border-white/10 bg-white/5 px-5 py-4 text-xs text-slate-400 sm:px-6">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <span>
-              {speech.status === 'playing'
+              {speech.isPlaying
                 ? `Speaking word ${Math.max(speech.activeWordIndex + 1, 1)}`
                 : 'Ready to sync'}
             </span>
             <span>
-              {hasSpeechText
+              {speech.words.length
                 ? 'Visible page text is pushed to the audio system'
                 : 'Waiting for synced page text'}
             </span>
