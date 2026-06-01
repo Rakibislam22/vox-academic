@@ -225,6 +225,23 @@ export default function DashboardPage() {
 
   return (
     <div className="flex h-screen max-h-screen w-full overflow-hidden bg-[#070a13] text-slate-200">
+      {/* Left sidebar - fixed width on large screens */}
+      <aside className="w-64 h-full shrink-0 hidden lg:block border-r border-white/5">
+        <div className="h-full px-4 py-6">
+          {/* Sidebar content — keep minimal to avoid layout shift */}
+          <div className="mb-4 text-sm text-slate-400">Sidebar</div>
+          <div className="space-y-3">
+            <button
+              onClick={handleFileSelect}
+              className="w-full rounded-md bg-white/6 px-3 py-2 text-sm text-white hover:bg-white/8"
+            >
+              Upload PDF
+            </button>
+          </div>
+        </div>
+      </aside>
+
+      {/* Right workspace - main content + pinned control bar */}
       <div className="flex flex-1 flex-col h-full min-h-0 overflow-hidden">
         <div className="flex-1 min-h-0 overflow-hidden px-4 pt-4 sm:px-6 sm:pt-6 lg:px-6 lg:pt-6">
           {!hasFile ? (
@@ -275,35 +292,35 @@ export default function DashboardPage() {
               </div>
             </div>
           )}
+        </div>
 
-          {hasFile && (
-            <div className="w-full shrink-0 border-t border-white/5 bg-[#070a13]/90 px-6 py-3 backdrop-blur-2xl">
-              {audioError && (
-                <div className="mb-3 rounded-lg border border-rose-400/30 bg-rose-500/10 px-3 py-2 text-sm text-rose-200">
-                  Audio failed: {audioError}
-                </div>
-              )}
-              <ControlBar
-                isPlaying={isPlaying}
-                isLoadingAudio={isLoadingAudio}
-                currentTime={currentTime}
-                duration={duration}
-                playbackSpeed={playbackSpeed}
-                playbackMode="stream"
-                hasText={Boolean(textForAudio)}
-                onPlayPause={handlePlayPause}
-                onSkipBackward={() => handleSkipBy(-10)}
-                onSkipForward={() => handleSkipBy(10)}
-                onSeek={handleSeek}
-                onSpeedChange={setPlaybackSpeed}
-                selectedVoice={selectedVoice}
-                onVoiceChange={(voice) => setSelectedVoice(voice as TtsVoice)}
-              />
+        {/* Pinned ControlBar at the bottom of the right workspace */}
+        <div className="w-full shrink-0 border-t border-white/5 bg-[#070a13]/90 px-6 py-3 backdrop-blur-2xl z-50">
+          {audioError && (
+            <div className="mb-3 rounded-lg border border-rose-400/30 bg-rose-500/10 px-3 py-2 text-sm text-rose-200">
+              Audio failed: {audioError}
             </div>
           )}
 
-          <audio ref={audioRef} className="hidden" />
+          <ControlBar
+            isPlaying={isPlaying}
+            isLoadingAudio={isLoadingAudio}
+            currentTime={currentTime}
+            duration={duration}
+            playbackSpeed={playbackSpeed}
+            playbackMode="stream"
+            hasText={Boolean(textForAudio)}
+            onPlayPause={handlePlayPause}
+            onSkipBackward={() => handleSkipBy(-10)}
+            onSkipForward={() => handleSkipBy(10)}
+            onSeek={handleSeek}
+            onSpeedChange={setPlaybackSpeed}
+            selectedVoice={selectedVoice}
+            onVoiceChange={(voice) => setSelectedVoice(voice as TtsVoice)}
+          />
         </div>
+
+        <audio ref={audioRef} className="hidden" />
       </div>
     </div>
   );
