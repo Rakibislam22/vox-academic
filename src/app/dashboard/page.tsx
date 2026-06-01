@@ -280,31 +280,33 @@ export default function DashboardPage() {
           )}
         </div>
 
-        {/* Pinned ControlBar at the bottom of the right workspace */}
-        <div className="w-full shrink-0 border-t border-white/5 bg-[#070a13]/90 px-6 py-3 backdrop-blur-2xl z-50">
-          {audioError && (
-            <div className="mb-3 rounded-lg border border-rose-400/30 bg-rose-500/10 px-3 py-2 text-sm text-rose-200">
-              Audio failed: {audioError}
-            </div>
-          )}
+        {/* Pinned ControlBar at the bottom of the right workspace - show only after a file is uploaded */}
+        {hasFile && (
+          <div className="w-full shrink-0 border-t border-white/5 bg-[#070a13]/90 px-6 py-3 backdrop-blur-2xl z-50">
+            {audioError && (
+              <div className="mb-3 rounded-lg border border-rose-400/30 bg-rose-500/10 px-3 py-2 text-sm text-rose-200">
+                Audio failed: {audioError}
+              </div>
+            )}
 
-          <ControlBar
-            isPlaying={isPlaying}
-            isLoadingAudio={isLoadingAudio}
-            currentTime={currentTime}
-            duration={duration}
-            playbackSpeed={playbackSpeed}
-            playbackMode="stream"
-            hasText={Boolean(textForAudio)}
-            onPlayPause={handlePlayPause}
-            onSkipBackward={() => handleSkipBy(-10)}
-            onSkipForward={() => handleSkipBy(10)}
-            onSeek={handleSeek}
-            onSpeedChange={setPlaybackSpeed}
-            selectedVoice={selectedVoice}
-            onVoiceChange={(voice) => setSelectedVoice(voice as TtsVoice)}
-          />
-        </div>
+            <ControlBar
+              isPlaying={isPlaying}
+              isLoadingAudio={isLoadingAudio}
+              currentTime={currentTime}
+              duration={duration}
+              playbackSpeed={playbackSpeed}
+              playbackMode="stream"
+              hasText={Boolean(textForAudio)}
+              compact={hasFile}
+              onPlayPause={handlePlayPause}
+              onSkipBackward={() => handleSkipBy(-10)}
+              onSkipForward={() => handleSkipBy(10)}
+              onSpeedChange={setPlaybackSpeed}
+              selectedVoice={selectedVoice}
+              onVoiceChange={(voice) => setSelectedVoice(voice as TtsVoice)}
+            />
+          </div>
+        )}
 
         <audio ref={audioRef} className="hidden" />
       </div>
