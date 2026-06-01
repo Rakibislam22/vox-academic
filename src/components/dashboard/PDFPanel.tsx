@@ -192,7 +192,7 @@ export default function PDFPanel() {
 
   return (
     <div className="flex h-full w-full flex-col overflow-hidden rounded-2xl border border-white/5 bg-slate-900/20 p-5 backdrop-blur-xl">
-      <div className="border-b border-white/10 bg-white/5 px-5 py-4 sm:px-6 sm:py-5">
+      <div className="bg-white/5 px-5 py-4 sm:px-6 sm:py-5 sm:border-none">
         <div className="flex flex-col gap-3">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="min-w-0">
@@ -227,7 +227,7 @@ export default function PDFPanel() {
       </div>
 
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-        <div className="flex items-center justify-between gap-3 border-b border-white/10 bg-white/5 px-5 py-4 sm:px-6">
+        <div className="flex items-center justify-between gap-3 bg-white/5 px-5 py-4 sm:px-6 sm:border-none">
           <div className="flex items-center gap-2">
             <button
               type="button"
@@ -257,11 +257,9 @@ export default function PDFPanel() {
           </div>
         </div>
 
-        <div
-          className="flex min-h-0 flex-1 justify-center overflow-y-auto rounded-xl border border-white/5 bg-slate-950/40 p-4"
-        >
+        <div className="flex min-h-0 flex-1 justify-center overflow-hidden w-full">
           <div className="relative flex w-full min-h-full justify-center">
-            <div className="relative w-full max-w-full overflow-hidden rounded-2xl border border-white/10 bg-[#08111f]/80 p-3 shadow-[0_0_0_1px_rgba(255,255,255,0.03),0_24px_80px_rgba(0,0,0,0.4)] backdrop-blur-xl sm:p-4">
+            <div className="relative w-full max-w-full overflow-hidden rounded-2xl bg-[#08111f]/80 p-3 sm:p-4 sm:border-none">
               {documentError && (
                 <div className="mb-4 rounded-xl border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-sm text-rose-100">
                   {documentError}
@@ -269,7 +267,7 @@ export default function PDFPanel() {
               )}
 
               {!hasPdfFile ? (
-                <div className="flex min-h-104 items-center justify-center rounded-2xl border border-dashed border-white/10 bg-white/5 p-6 text-center text-slate-300">
+                <div className="flex min-h-104 items-center justify-center rounded-2xl bg-white/5 p-6 text-center text-slate-300 sm:border-none">
                   <div className="max-w-md">
                     <p className="text-lg font-semibold text-white">No PDF selected yet</p>
                     <p className="mt-2 text-sm leading-6 text-slate-400">
@@ -279,7 +277,7 @@ export default function PDFPanel() {
                   </div>
                 </div>
               ) : isDocumentLoading ? (
-                <div className="flex min-h-104 items-center justify-center rounded-2xl border border-white/10 bg-white/5 p-6">
+                <div className="flex min-h-104 items-center justify-center rounded-2xl bg-white/5 p-6 sm:border-none">
                   <div className="text-center">
                     <div className="mx-auto h-12 w-12 animate-spin rounded-full border-2 border-cyan-400/30 border-t-cyan-300" />
                     <p className="mt-4 text-sm font-medium uppercase tracking-[0.22em] text-slate-300">
@@ -292,7 +290,7 @@ export default function PDFPanel() {
                 </div>
               ) : (
                 <div className="flex min-h-104 flex-col rounded-2xl bg-[#0b1220] p-4 sm:p-5">
-                  <div className="mb-4 flex flex-wrap items-center justify-between gap-3 border-b border-white/10 pb-3 text-xs text-slate-400">
+                  <div className="mb-4 flex flex-wrap items-center justify-between gap-3 pb-3 text-xs text-slate-400 sm:border-none">
                     <span>
                       {speech.status === 'playing'
                         ? `Speaking word ${Math.max(speech.activeWordIndex + 1, 1)}`
@@ -300,17 +298,16 @@ export default function PDFPanel() {
                     </span>
                     <span>{speech.currentWord || currentWordLabel || 'Listening for word boundaries'}</span>
                   </div>
-
-                  <div className="min-h-0 flex-1 overflow-y-auto rounded-2xl border border-white/10 bg-slate-950/40 p-4 sm:p-5">
+                  <div className="flex-1 min-h-0 w-full overflow-y-auto bg-slate-950/40 p-6 rounded-xl sm:border-none">
                     {readingTokens.length > 0 ? (
-                      <p className="text-pretty text-[1.03rem] leading-9 text-slate-200 sm:text-[1.08rem] sm:leading-10">
+                      <p className="whitespace-pre-wrap break-words text-base leading-relaxed text-slate-200">
                         {readingTokens.map((token, index) => {
                           const isActive = index === speech.activeWordIndex;
 
                           return (
                             <span
                               key={`${token.start}-${token.end}-${index}`}
-                              className={`${wordTokenClass} ${isActive ? 'bg-sky-500/20 text-sky-400 shadow-[0_0_0_1px_rgba(56,189,248,0.2)]' : 'text-slate-200/90'}`}
+                              className={`${wordTokenClass} ${isActive ? 'bg-sky-500/20 text-sky-400' : 'text-slate-200/90'}`}
                             >
                               {token.text}
                               {index < readingTokens.length - 1 ? ' ' : ''}
@@ -335,7 +332,7 @@ export default function PDFPanel() {
           </div>
         </div>
 
-        <div className="border-t border-white/10 bg-white/5 px-5 py-4 text-xs text-slate-400 sm:px-6">
+        <div className="bg-white/5 px-5 py-4 text-xs text-slate-400 sm:px-6 sm:border-none">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <span>
               {speech.isPlaying

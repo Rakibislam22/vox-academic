@@ -225,21 +225,7 @@ export default function DashboardPage() {
 
   return (
     <div className="flex h-screen max-h-screen w-full overflow-hidden bg-[#070a13] text-slate-200">
-      {/* Left sidebar - fixed width on large screens */}
-      <aside className="w-64 h-full shrink-0 hidden lg:block border-r border-white/5">
-        <div className="h-full px-4 py-6">
-          {/* Sidebar content — keep minimal to avoid layout shift */}
-          <div className="mb-4 text-sm text-slate-400">Sidebar</div>
-          <div className="space-y-3">
-            <button
-              onClick={handleFileSelect}
-              className="w-full rounded-md bg-white/6 px-3 py-2 text-sm text-white hover:bg-white/8"
-            >
-              Upload PDF
-            </button>
-          </div>
-        </div>
-      </aside>
+      {/* Sidebar is provided by the parent DashboardClient; avoid duplicate sidebars here */}
 
       {/* Right workspace - main content + pinned control bar */}
       <div className="flex flex-1 flex-col h-full min-h-0 overflow-hidden">
