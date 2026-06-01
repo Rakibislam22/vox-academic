@@ -397,6 +397,20 @@ export function useAudioReader(rawText: string, preferredVoiceHint = ''): AudioR
             const nextTime = anchor.baseTime + elapsedSeconds * playbackSpeed;
 
             updateProgress(nextTime);
+            // Fallback: estimate current word index from progress if boundary events are absent
+            if (tokens.length > 0 && duration > 0) {
+                const safeDuration = Math.max(duration, 1);
+                const estimatedIndex = Math.min(tokens.length - 1, Math.max(0, Math.floor((nextTime / safeDuration) * tokens.length)));
+
+                if (estimatedIndex !== activeWordIndexRef.current) {
+                    // update word state without relying on onboundary
+                    const token = tokens[estimatedIndex];
+                    if (token) {
+                        updateWordState(token.wordIndex ?? estimatedIndex, token.start);
+                    }
+                }
+            }
+
             progressFrameRef.current = window.requestAnimationFrame(tick);
         };
 
@@ -471,11 +485,18 @@ export function useAudioReader(rawText: string, preferredVoiceHint = ''): AudioR
             };
 
             utterance.onboundary = (event) => {
-                if (utteranceSequenceRef.current !== utteranceId || event.name !== 'word') {
+                if (utteranceSequenceRef.current !== utteranceId) {
                     return;
                 }
 
-                const absoluteCharIndex = startingToken.start + event.charIndex;
+                // Some browsers may not set `event.name`; prefer charIndex if available.
+                const charIndex = (event as any).charIndex;
+
+                if (typeof charIndex !== 'number' || Number.isNaN(charIndex)) {
+                    return;
+                }
+
+                const absoluteCharIndex = startingToken.start + charIndex;
                 const matchedToken = findTokenByCharIndex(tokens, absoluteCharIndex);
 
                 if (!matchedToken) {
