@@ -36,13 +36,8 @@ const wordTokenClass =
   'inline-flex cursor-pointer items-center rounded px-0.5 transition-all duration-200 ease-out hover:text-sky-400';
 
 export default function PDFPanel() {
-  const {
-    currentSentence,
-    speech,
-    uploadedPdfFile,
-    setCleanedTextForSpeech,
-    setCurrentSentence,
-  } = usePDFContext();
+  const { currentSentence, speech, uploadedPdfFile, setCleanedTextForSpeech, setCurrentSentence } =
+    usePDFContext();
 
   const documentRef = useRef<PDFDocumentProxy | null>(null);
   const pageTextCacheRef = useRef<Map<number, string>>(new Map());
@@ -302,7 +297,9 @@ export default function PDFPanel() {
                         ? `Speaking word ${Math.max(speech.activeWordIndex + 1, 1)}`
                         : 'Ready to sync'}
                     </span>
-                    <span>{speech.currentWord || currentWordLabel || 'Listening for word boundaries'}</span>
+                    <span>
+                      {speech.currentWord || currentWordLabel || 'Listening for word boundaries'}
+                    </span>
                   </div>
                   <div className="flex-1 min-h-0 w-full overflow-y-auto whitespace-pre-wrap break-words bg-slate-950/40 p-6 rounded-xl sm:border-none">
                     {readingTokens.length > 0 ? (

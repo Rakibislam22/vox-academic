@@ -23,8 +23,11 @@ export default function DashboardPage() {
   const [playbackSpeed, setPlaybackSpeed] = useState(1);
   const [selectedVoice, setSelectedVoice] = useState<TtsVoice>('en-US-AndrewNeural');
 
-  const { isPlaying, togglePlayPause, isLoadingAudio, audioError } =
-    useAudioReader(textForAudio, selectedVoice, playbackSpeed);
+  const { isPlaying, togglePlayPause, isLoadingAudio, audioError } = useAudioReader(
+    textForAudio,
+    selectedVoice,
+    playbackSpeed,
+  );
 
   const handleFileSelect = useCallback(() => {
     setHasFile(true);
@@ -54,19 +57,21 @@ export default function DashboardPage() {
                   <div className="grid grid-cols-2 gap-1">
                     <button
                       onClick={() => setActiveMobileTab('pdf')}
-                      className={`rounded-xl px-4 py-2 text-sm font-medium transition-transform active:scale-95 ${activeMobileTab === 'pdf'
-                        ? 'bg-white/8 text-white shadow-[0_0_20px_rgba(26,140,255,0.14)]'
-                        : 'text-slate-400'
-                        }`}
+                      className={`rounded-xl px-4 py-2 text-sm font-medium transition-transform active:scale-95 ${
+                        activeMobileTab === 'pdf'
+                          ? 'bg-white/8 text-white shadow-[0_0_20px_rgba(26,140,255,0.14)]'
+                          : 'text-slate-400'
+                      }`}
                     >
                       PDF View
                     </button>
                     <button
                       onClick={() => setActiveMobileTab('insights')}
-                      className={`rounded-xl px-4 py-2 text-sm font-medium transition-transform active:scale-95 ${activeMobileTab === 'insights'
-                        ? 'bg-white/8 text-white shadow-[0_0_20px_rgba(26,140,255,0.14)]'
-                        : 'text-slate-400'
-                        }`}
+                      className={`rounded-xl px-4 py-2 text-sm font-medium transition-transform active:scale-95 ${
+                        activeMobileTab === 'insights'
+                          ? 'bg-white/8 text-white shadow-[0_0_20px_rgba(26,140,255,0.14)]'
+                          : 'text-slate-400'
+                      }`}
                     >
                       AI Insights
                     </button>
@@ -95,7 +100,10 @@ export default function DashboardPage() {
         {hasFile && (
           <div className="w-full shrink-0 border-t border-white/5 bg-[#070a13]/90 px-6 py-3 backdrop-blur-2xl z-50">
             {audioError && (
-              <div className="mb-3 rounded-lg border border-rose-400/30 bg-rose-500/10 px-3 py-2 text-sm text-rose-200" role="alert">
+              <div
+                className="mb-3 rounded-lg border border-rose-400/30 bg-rose-500/10 px-3 py-2 text-sm text-rose-200"
+                role="alert"
+              >
                 Speech Synthesis Error: {audioError}
               </div>
             )}
@@ -110,8 +118,8 @@ export default function DashboardPage() {
               hasText={Boolean(textForAudio)}
               compact={hasFile}
               onPlayPause={handlePlayPause}
-              onSkipBackward={() => { }} // Not applicable for Web Speech API
-              onSkipForward={() => { }} // Not applicable for Web Speech API
+              onSkipBackward={() => {}} // Not applicable for Web Speech API
+              onSkipForward={() => {}} // Not applicable for Web Speech API
               onSpeedChange={setPlaybackSpeed}
               selectedVoice={selectedVoice}
               onVoiceChange={(voice) => setSelectedVoice(voice as TtsVoice)}
