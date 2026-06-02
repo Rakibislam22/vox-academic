@@ -1,112 +1,135 @@
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 
-type TtsVoice = 'en-US-AndrewNeural' | 'en-US-EmmaNeural';
-
-/**
- * A hook to manage text-to-speech using the Web Speech API.
- * It handles playing, pausing, resuming, and tracking the currently spoken word.
- *
- * @param cleanedText The text to be spoken.
- * @param voiceName The name of the voice to use.
- * @param playbackSpeed The desired playback speed.
- * @returns An object with TTS state and controls.
- */
 export function useAudioReader(
-    cleanedText: string,
-    voiceName: TtsVoice,
-    playbackSpeed: number,
+    textForAudio: string,
+    selectedVoice: string,
+    playbackSpeed: number
 ) {
     const [isPlaying, setIsPlaying] = useState(false);
     const [currentWordIndex, setCurrentWordIndex] = useState(-1);
+    const [isLoadingAudio, setIsLoadingAudio] = useState(false);
     const [audioError, setAudioError] = useState<string | null>(null);
+    const words = useMemo(
+        () => textForAudio.trim() ? textForAudio.trim().split(/\s+/) : [],
+        [textForAudio],
+    );
+
     const isPausedRef = useRef(false);
+    const startWordIndexRef = useRef(0);
     const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
 
-    const cancelSpeech = useCallback(() => {
-        if (window.speechSynthesis) {
-            window.speechSynthesis.cancel();
-        }
-        isPausedRef.current = false;
-        setIsPlaying(false);
-        setCurrentWordIndex(-1);
-        setAudioError(null);
-        utteranceRef.current = null;
-    }, []);
-
-    // Cleanup on unmount
-    useEffect(() => {
-        return () => {
-            if (window.speechSynthesis) {
-                window.speechSynthesis.cancel();
-            }
-        };
-    }, []);
-
-    // When the source text or voice changes, cancel any ongoing speech.
-    useEffect(() => {
-        cancelSpeech();
-    }, [cleanedText, voiceName, cancelSpeech]);
-
-    const togglePlayPause = useCallback(() => {
-        if (!cleanedText) return;
-
-        const synth = window.speechSynthesis;
-        if (!synth) {
-            setAudioError('Speech Synthesis is not supported by this browser.');
+    const speakFromWordIndex = useCallback((wordIndex: number) => {
+        if (!window.speechSynthesis) {
+            setAudioError('Web Speech API is not supported in this browser.');
             return;
         }
 
-        // **Guideline 1: Fix the State Toggle**
-        if (synth.speaking && !isPausedRef.current) {
-            synth.pause();
-            isPausedRef.current = true;
-            setIsPlaying(false);
-        } else if (synth.paused && isPausedRef.current) {
-            synth.resume();
-            isPausedRef.current = false;
+        if (words.length === 0) {
+            return;
+        }
+
+        const clickedIndex = Math.max(0, Math.min(wordIndex, words.length - 1));
+        const utteranceText = words.slice(clickedIndex).join(' ');
+
+        if (!utteranceText.trim()) {
+            return;
+        }
+
+        window.speechSynthesis.cancel();
+        startWordIndexRef.current = clickedIndex;
+        setCurrentWordIndex(clickedIndex);
+        setAudioError(null);
+        isPausedRef.current = false;
+
+        const utterance = new SpeechSynthesisUtterance(utteranceText);
+        utteranceRef.current = utterance;
+
+        const voices = window.speechSynthesis.getVoices();
+        const voice = voices.find(v => v.voiceURI === selectedVoice);
+        if (voice) {
+            utterance.voice = voice;
+        }
+
+        utterance.rate = playbackSpeed;
+
+        utterance.onstart = () => {
             setIsPlaying(true);
-        } else {
-            cancelSpeech();
+            isPausedRef.current = false;
+            setIsLoadingAudio(false);
+            setCurrentWordIndex(startWordIndexRef.current);
+        };
 
-            const utterance = new SpeechSynthesisUtterance(cleanedText);
-            utteranceRef.current = utterance;
+        utterance.onend = () => {
+            setIsPlaying(false);
+            isPausedRef.current = false;
+            setCurrentWordIndex(-1);
+        };
 
-            const voices = synth.getVoices();
-            const selectedVoice = voices.find((v) => v.name === voiceName);
-            if (selectedVoice) utterance.voice = selectedVoice;
-
-            utterance.rate = playbackSpeed;
-
-            // **Guideline 2: Fix Word Boundary Calculation**
-            utterance.onboundary = (event) => {
-                if (event.name === 'word') {
-                    const textUntilBoundary = cleanedText.substring(0, event.charIndex);
-                    const wordIndex = textUntilBoundary.split(/\s+/).length - 1;
-                    setCurrentWordIndex(wordIndex);
-                }
-            };
-
-            utterance.onstart = () => {
-                setIsPlaying(true);
-                isPausedRef.current = false;
-                setAudioError(null);
-            };
-
-            utterance.onend = () => {
+        utterance.onerror = (event) => {
+            if (event.error !== 'canceled' && event.error !== 'interrupted') {
+                setAudioError(event.error);
                 setIsPlaying(false);
                 isPausedRef.current = false;
-                setCurrentWordIndex(-1);
-                utteranceRef.current = null;
-            };
+                setIsLoadingAudio(false);
+            }
+        };
 
-            utterance.onerror = (event) => {
-                setAudioError(`Speech error: ${event.error}`);
-                cancelSpeech();
-            };
+        utterance.onboundary = (event) => {
+            if (event.name === 'word') {
+                const charIndex = event.charIndex;
+                const remainingTextUpToBoundary = utteranceText.substring(0, charIndex).trim();
+                const relativeWordIndex =
+                    remainingTextUpToBoundary === '' ? 0 : remainingTextUpToBoundary.split(/\s+/).length;
+                const absoluteWordIndex = startWordIndexRef.current + relativeWordIndex;
+                const totalWordsLength = words.length;
 
-            synth.speak(utterance);
+                if (absoluteWordIndex >= 0 && absoluteWordIndex < totalWordsLength) {
+                    setCurrentWordIndex(absoluteWordIndex);
+                }
+            }
+        };
+
+        setIsLoadingAudio(true);
+        window.speechSynthesis.speak(utterance);
+    }, [playbackSpeed, selectedVoice, words]);
+
+    const togglePlayPause = useCallback(() => {
+        if (!window.speechSynthesis) {
+            setAudioError('Web Speech API is not supported in this browser.');
+            return;
         }
-    }, [cleanedText, voiceName, playbackSpeed, cancelSpeech]);
 
-    return { isPlaying, currentWordIndex, togglePlayPause, isLoadingAudio: false, audioError };
+        if (window.speechSynthesis.paused || isPausedRef.current) {
+            window.speechSynthesis.resume();
+            isPausedRef.current = false;
+            setIsPlaying(true);
+            return;
+        }
+
+        if (window.speechSynthesis.speaking || isPlaying) {
+            window.speechSynthesis.pause();
+            isPausedRef.current = true;
+            setIsPlaying(false);
+            return;
+        }
+
+        window.speechSynthesis.cancel();
+        speakFromWordIndex(0);
+    }, [isPlaying, speakFromWordIndex]);
+
+    // Stop talking when switching tabs/unmounting
+    useEffect(() => {
+        return () => {
+            window.speechSynthesis.cancel();
+        };
+    }, []);
+
+    return {
+        isPlaying,
+        currentWordIndex,
+        togglePlayPause,
+        isLoadingAudio,
+        audioError,
+        speakFromWordIndex,
+    };
 }

@@ -33,7 +33,7 @@ function sanitizePageText(rawText: string) {
 }
 
 const wordTokenClass =
-  'inline-flex items-center rounded px-0.5 transition-all duration-200 ease-out';
+  'inline-flex cursor-pointer items-center rounded px-0.5 transition-all duration-200 ease-out hover:text-sky-400';
 
 export default function PDFPanel() {
   const {
@@ -58,6 +58,12 @@ export default function PDFPanel() {
     [speech.tokens],
   );
   const currentWordLabel = speech.currentWord || readingTokens[speech.activeWordIndex]?.text || '';
+  const handleWordClick = useCallback(
+    (wordIndex: number) => {
+      speech.speakFromWordIndex(wordIndex);
+    },
+    [speech],
+  );
 
   const goToPage = useCallback(
     (nextPage: number) => {
@@ -258,8 +264,8 @@ export default function PDFPanel() {
         </div>
 
         <div className="flex min-h-0 flex-1 justify-center overflow-hidden w-full">
-          <div className="relative flex w-full min-h-full justify-center">
-            <div className="relative w-full max-w-full overflow-hidden rounded-2xl bg-[#08111f]/80 p-3 sm:p-4 sm:border-none">
+          <div className="relative flex h-full min-h-0 w-full justify-center">
+            <div className="relative flex h-full min-h-0 w-full max-w-full flex-col overflow-hidden rounded-2xl bg-[#08111f]/80 p-3 sm:p-4 sm:border-none">
               {documentError && (
                 <div className="mb-4 rounded-xl border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-sm text-rose-100">
                   {documentError}
@@ -289,7 +295,7 @@ export default function PDFPanel() {
                   </div>
                 </div>
               ) : (
-                <div className="flex min-h-104 flex-col rounded-2xl bg-[#0b1220] p-4 sm:p-5">
+                <div className="flex min-h-0 flex-1 flex-col rounded-2xl bg-[#0b1220] p-4 sm:p-5">
                   <div className="mb-4 flex flex-wrap items-center justify-between gap-3 pb-3 text-xs text-slate-400 sm:border-none">
                     <span>
                       {speech.status === 'playing'
@@ -298,15 +304,16 @@ export default function PDFPanel() {
                     </span>
                     <span>{speech.currentWord || currentWordLabel || 'Listening for word boundaries'}</span>
                   </div>
-                  <div className="flex-1 min-h-0 w-full overflow-y-auto bg-slate-950/40 p-6 rounded-xl sm:border-none">
+                  <div className="flex-1 min-h-0 w-full overflow-y-auto whitespace-pre-wrap break-words bg-slate-950/40 p-6 rounded-xl sm:border-none">
                     {readingTokens.length > 0 ? (
-                      <p className="whitespace-pre-wrap break-words text-base leading-relaxed text-slate-200">
+                      <p className="text-base leading-relaxed text-slate-200">
                         {readingTokens.map((token, index) => {
                           const isActive = index === speech.activeWordIndex;
 
                           return (
                             <span
                               key={`${token.start}-${token.end}-${index}`}
+                              onClick={() => handleWordClick(index)}
                               className={`${wordTokenClass} ${isActive ? 'bg-sky-500/20 text-sky-400' : 'text-slate-200/90'}`}
                             >
                               {token.text}

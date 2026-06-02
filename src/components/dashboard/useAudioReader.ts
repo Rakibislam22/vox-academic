@@ -160,36 +160,6 @@ function tokenizeSpeechText(text: string): AudioToken[] {
     return tokens;
 }
 
-function findTokenByCharIndex(tokens: AudioToken[], charIndex: number) {
-    if (!tokens.length) {
-        return null;
-    }
-
-    let left = 0;
-    let right = tokens.length - 1;
-    let fallbackIndex = 0;
-
-    while (left <= right) {
-        const middle = Math.floor((left + right) / 2);
-        const token = tokens[middle];
-
-        if (charIndex < token.start) {
-            right = middle - 1;
-            continue;
-        }
-
-        fallbackIndex = middle;
-
-        if (charIndex < token.end) {
-            return token;
-        }
-
-        left = middle + 1;
-    }
-
-    return tokens[Math.min(fallbackIndex, tokens.length - 1)] ?? null;
-}
-
 function estimateDurationSeconds(text: string, wordCount: number, playbackSpeed: number) {
     const safePlaybackSpeed = clamp(playbackSpeed, MIN_PLAYBACK_SPEED, MAX_PLAYBACK_SPEED);
     const cleanedLength = Math.max(1, text.replace(/\s+/g, ' ').trim().length);
@@ -270,12 +240,13 @@ export function useAudioReader(rawText: string, preferredVoiceHint = ''): AudioR
     const [currentWord, setCurrentWord] = useState('');
     const [currentWordRange, setCurrentWordRange] = useState<AudioWordRange | null>(null);
     const [currentTime, setCurrentTime] = useState(0);
-    const [duration, setDuration] = useState(1);
     const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
     const [voiceOverride, setVoiceOverride] = useState(preferredVoiceHint);
 
     const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
     const utteranceSequenceRef = useRef(0);
+    const isPausedRef = useRef(false);
+    const startWordIndexRef = useRef(0);
     const activeWordIndexRef = useRef(-1);
     const currentTimeRef = useRef(0);
     const playbackAnchorRef = useRef<{ startedAt: number; baseTime: number } | null>(null);
@@ -285,6 +256,10 @@ export function useAudioReader(rawText: string, preferredVoiceHint = ''): AudioR
     const selectedVoice = useMemo(
         () => selectPreferredVoice(voices, voiceOverride || preferredVoiceHint),
         [preferredVoiceHint, voiceOverride, voices],
+    );
+    const duration = useMemo(
+        () => estimateDurationSeconds(cleanedText, words.length, playbackSpeed),
+        [cleanedText, playbackSpeed, words.length],
     );
 
     useEffect(() => {
@@ -309,34 +284,41 @@ export function useAudioReader(rawText: string, preferredVoiceHint = ''): AudioR
     }, [isSupported]);
 
     useEffect(() => {
-        const nextDuration = estimateDurationSeconds(cleanedText, words.length, playbackSpeed);
-        setDuration(nextDuration);
+        let cancelled = false;
 
         if (!cleanedText) {
-            setStatus('idle');
-            setActiveWordIndex(-1);
-            setCurrentWord('');
-            setCurrentWordRange(null);
-            setCurrentTime(0);
-            currentTimeRef.current = 0;
-            playbackAnchorRef.current = null;
-        } else if (currentTimeRef.current > nextDuration) {
-            setCurrentTime(nextDuration);
-            currentTimeRef.current = nextDuration;
+            queueMicrotask(() => {
+                if (cancelled) {
+                    return;
+                }
+
+                setStatus('idle');
+                setActiveWordIndex(-1);
+                setCurrentWord('');
+                setCurrentWordRange(null);
+                setCurrentTime(0);
+                currentTimeRef.current = 0;
+                playbackAnchorRef.current = null;
+            });
+        } else if (currentTimeRef.current > duration) {
+            queueMicrotask(() => {
+                if (cancelled) {
+                    return;
+                }
+
+                setCurrentTime(duration);
+                currentTimeRef.current = duration;
+            });
         }
-    }, [cleanedText, playbackSpeed, words.length]);
+
+        return () => {
+            cancelled = true;
+        };
+    }, [cleanedText, duration]);
 
     useEffect(() => {
         selectedVoiceRef.current = selectedVoice;
     }, [selectedVoice]);
-
-    useEffect(() => {
-        if (!isSupported || !cleanedText.trim()) {
-            return;
-        }
-
-        return stop;
-    }, [cleanedText, isSupported]);
 
     const updateProgress = useCallback(
         (nextTime: number) => {
@@ -415,11 +397,12 @@ export function useAudioReader(rawText: string, preferredVoiceHint = ''): AudioR
         };
 
         progressFrameRef.current = window.requestAnimationFrame(tick);
-    }, [playbackSpeed, status, updateProgress]);
+    }, [duration, playbackSpeed, status, tokens, updateProgress, updateWordState]);
 
     const stop = useCallback(() => {
         utteranceSequenceRef.current += 1;
         utteranceRef.current = null;
+        isPausedRef.current = false;
         playbackAnchorRef.current = null;
 
         if (typeof window !== 'undefined' && isSupported) {
@@ -439,6 +422,14 @@ export function useAudioReader(rawText: string, preferredVoiceHint = ''): AudioR
         updateProgress(0);
     }, [isSupported, updateProgress]);
 
+    useEffect(() => {
+        if (!isSupported || !cleanedText.trim()) {
+            return;
+        }
+
+        return stop;
+    }, [cleanedText, isSupported, stop]);
+
     const speakFromWordIndex = useCallback(
         (wordIndex: number) => {
             if (!isSupported || !cleanedText.trim() || tokens.length === 0) {
@@ -452,9 +443,9 @@ export function useAudioReader(rawText: string, preferredVoiceHint = ''): AudioR
                 return;
             }
 
-            const textToSpeak = cleanedText.slice(startingToken.start);
+            const utteranceText = words.slice(safeWordIndex).join(' ');
 
-            if (!textToSpeak.trim()) {
+            if (!utteranceText.trim()) {
                 return;
             }
 
@@ -462,8 +453,10 @@ export function useAudioReader(rawText: string, preferredVoiceHint = ''): AudioR
             utteranceSequenceRef.current = utteranceId;
 
             window.speechSynthesis.cancel();
+            isPausedRef.current = false;
+            startWordIndexRef.current = safeWordIndex;
 
-            const utterance = new SpeechSynthesisUtterance(textToSpeak);
+            const utterance = new SpeechSynthesisUtterance(utteranceText);
             const voice = selectedVoiceRef.current ?? selectPreferredVoice(voices, voiceOverride || preferredVoiceHint);
 
             utterance.rate = playbackSpeed;
@@ -480,8 +473,9 @@ export function useAudioReader(rawText: string, preferredVoiceHint = ''): AudioR
                     return;
                 }
 
+                isPausedRef.current = false;
                 setStatus('playing');
-                updateWordState(safeWordIndex, startingToken.start);
+                updateWordState(startWordIndexRef.current, startingToken.start);
             };
 
             utterance.onboundary = (event) => {
@@ -489,21 +483,26 @@ export function useAudioReader(rawText: string, preferredVoiceHint = ''): AudioR
                     return;
                 }
 
-                // Some browsers may not set `event.name`; prefer charIndex if available.
-                const charIndex = (event as any).charIndex;
+                if (event.name !== 'word') {
+                    return;
+                }
+
+                const charIndex = event.charIndex;
 
                 if (typeof charIndex !== 'number' || Number.isNaN(charIndex)) {
                     return;
                 }
 
-                const absoluteCharIndex = startingToken.start + charIndex;
-                const matchedToken = findTokenByCharIndex(tokens, absoluteCharIndex);
+                const remainingTextUpToBoundary = utteranceText.substring(0, charIndex).trim();
+                const relativeWordIndex =
+                    remainingTextUpToBoundary === '' ? 0 : remainingTextUpToBoundary.split(/\s+/).length;
+                const absoluteWordIndex = startWordIndexRef.current + relativeWordIndex;
+                const totalWordsLength = words.length;
 
-                if (!matchedToken) {
-                    return;
+                if (absoluteWordIndex >= 0 && absoluteWordIndex < totalWordsLength) {
+                    const absoluteToken = tokens[absoluteWordIndex];
+                    updateWordState(absoluteWordIndex, absoluteToken?.start);
                 }
-
-                updateWordState(matchedToken.wordIndex ?? safeWordIndex, matchedToken.start);
             };
 
             utterance.onpause = () => {
@@ -511,6 +510,7 @@ export function useAudioReader(rawText: string, preferredVoiceHint = ''): AudioR
                     return;
                 }
 
+                isPausedRef.current = true;
                 setStatus('paused');
 
                 if (progressFrameRef.current !== null) {
@@ -529,6 +529,7 @@ export function useAudioReader(rawText: string, preferredVoiceHint = ''): AudioR
                     return;
                 }
 
+                isPausedRef.current = false;
                 setStatus('playing');
                 playbackAnchorRef.current = {
                     startedAt: performance.now(),
@@ -543,6 +544,7 @@ export function useAudioReader(rawText: string, preferredVoiceHint = ''): AudioR
                 }
 
                 utteranceRef.current = null;
+                isPausedRef.current = false;
                 playbackAnchorRef.current = null;
                 setStatus('idle');
                 setActiveWordIndex(-1);
@@ -562,6 +564,7 @@ export function useAudioReader(rawText: string, preferredVoiceHint = ''): AudioR
                 }
 
                 utteranceRef.current = null;
+                isPausedRef.current = false;
                 playbackAnchorRef.current = null;
                 setStatus('idle');
                 setActiveWordIndex(-1);
@@ -576,12 +579,13 @@ export function useAudioReader(rawText: string, preferredVoiceHint = ''): AudioR
             };
 
             utteranceRef.current = utterance;
+            isPausedRef.current = false;
             setStatus('playing');
             updateWordState(safeWordIndex, startingToken.start);
             window.speechSynthesis.speak(utterance);
             scheduleProgressTick();
         },
-        [cleanedText, duration, isSupported, preferredVoiceHint, playbackSpeed, scheduleProgressTick, tokens, updateProgress, updateWordState, voices, voiceOverride],
+        [cleanedText, duration, isSupported, preferredVoiceHint, playbackSpeed, scheduleProgressTick, tokens, updateProgress, updateWordState, voices, voiceOverride, words],
     );
 
     const play = useCallback(() => {
@@ -589,8 +593,15 @@ export function useAudioReader(rawText: string, preferredVoiceHint = ''): AudioR
             return;
         }
 
-        if (window.speechSynthesis.paused && utteranceRef.current) {
-            resume();
+        if ((window.speechSynthesis.paused || isPausedRef.current) && utteranceRef.current) {
+            window.speechSynthesis.resume();
+            isPausedRef.current = false;
+            setStatus('playing');
+            playbackAnchorRef.current = {
+                startedAt: performance.now(),
+                baseTime: currentTimeRef.current,
+            };
+            scheduleProgressTick();
             return;
         }
 
@@ -598,9 +609,8 @@ export function useAudioReader(rawText: string, preferredVoiceHint = ''): AudioR
             return;
         }
 
-        const resumeWordIndex = activeWordIndexRef.current >= 0 ? activeWordIndexRef.current : 0;
-        speakFromWordIndex(resumeWordIndex);
-    }, [cleanedText, isSupported, speakFromWordIndex, tokens.length]);
+        speakFromWordIndex(0);
+    }, [cleanedText, isSupported, scheduleProgressTick, speakFromWordIndex, tokens.length]);
 
     const pause = useCallback(() => {
         if (!isSupported || !window.speechSynthesis.speaking) {
@@ -608,6 +618,7 @@ export function useAudioReader(rawText: string, preferredVoiceHint = ''): AudioR
         }
 
         window.speechSynthesis.pause();
+        isPausedRef.current = true;
         setStatus('paused');
 
         if (progressFrameRef.current !== null) {
@@ -622,11 +633,12 @@ export function useAudioReader(rawText: string, preferredVoiceHint = ''): AudioR
     }, [isSupported]);
 
     const resume = useCallback(() => {
-        if (!isSupported || !window.speechSynthesis.paused) {
+        if (!isSupported || (!window.speechSynthesis.paused && !isPausedRef.current)) {
             return;
         }
 
         window.speechSynthesis.resume();
+        isPausedRef.current = false;
         setStatus('playing');
 
         playbackAnchorRef.current = {
@@ -637,18 +649,22 @@ export function useAudioReader(rawText: string, preferredVoiceHint = ''): AudioR
     }, [isSupported, scheduleProgressTick]);
 
     const toggle = useCallback(() => {
-        if (status === 'playing') {
-            pause();
+        if (!isSupported || !cleanedText.trim() || tokens.length === 0) {
             return;
         }
 
-        if (status === 'paused') {
+        if ((window.speechSynthesis.paused || isPausedRef.current) && utteranceRef.current) {
             resume();
             return;
         }
 
+        if (window.speechSynthesis.speaking || status === 'playing') {
+            pause();
+            return;
+        }
+
         play();
-    }, [pause, play, resume, status]);
+    }, [cleanedText, isSupported, pause, play, resume, status, tokens.length]);
 
     const setPlaybackSpeed = useCallback(
         (nextSpeed: number) => {
@@ -698,6 +714,7 @@ export function useAudioReader(rawText: string, preferredVoiceHint = ''): AudioR
 
             utteranceSequenceRef.current += 1;
             utteranceRef.current = null;
+            isPausedRef.current = false;
             playbackAnchorRef.current = null;
 
             if (typeof window !== 'undefined' && window.speechSynthesis.speaking) {

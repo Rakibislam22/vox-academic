@@ -23,7 +23,7 @@ export default function DashboardPage() {
   const [playbackSpeed, setPlaybackSpeed] = useState(1);
   const [selectedVoice, setSelectedVoice] = useState<TtsVoice>('en-US-AndrewNeural');
 
-  const { isPlaying, currentWordIndex, togglePlayPause, isLoadingAudio, audioError } =
+  const { isPlaying, togglePlayPause, isLoadingAudio, audioError } =
     useAudioReader(textForAudio, selectedVoice, playbackSpeed);
 
   const handleFileSelect = useCallback(() => {
@@ -76,11 +76,11 @@ export default function DashboardPage() {
 
               <div className="flex-1 min-h-0 overflow-hidden lg:grid lg:grid-cols-[1.2fr_1fr] lg:gap-6 lg:h-full">
                 <div className="h-full min-h-0 overflow-hidden lg:hidden">
-                  {activeMobileTab === 'pdf' ? <PDFPanel currentWordIndex={currentWordIndex} /> : <SummaryPanel />}
+                  {activeMobileTab === 'pdf' ? <PDFPanel /> : <SummaryPanel />}
                 </div>
 
                 <div className="hidden h-full min-h-0 overflow-hidden lg:block">
-                  <PDFPanel currentWordIndex={currentWordIndex} />
+                  <PDFPanel />
                 </div>
 
                 <div className="hidden h-full min-h-0 overflow-hidden lg:block">
@@ -106,7 +106,7 @@ export default function DashboardPage() {
               currentTime={0} // Not applicable for Web Speech API
               duration={0} // Not applicable for Web Speech API
               playbackSpeed={playbackSpeed}
-              playbackMode="tts"
+              playbackMode="browser"
               hasText={Boolean(textForAudio)}
               compact={hasFile}
               onPlayPause={handlePlayPause}
