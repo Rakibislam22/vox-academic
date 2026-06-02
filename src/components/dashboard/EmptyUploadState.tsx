@@ -2,7 +2,10 @@
 
 import { useRef, useState } from 'react';
 import { Upload, Globe, FileText, ArrowRight, Loader2 } from 'lucide-react';
-import { GlobalWorkerOptions, getDocument } from 'pdfjs-dist/legacy/build/pdf.mjs';
+import {
+  GlobalWorkerOptions,
+  getDocument,
+} from 'pdfjs-dist/legacy/build/pdf.mjs';
 import { usePDFContext } from './PDFContext';
 
 interface EmptyUploadStateProps {
@@ -41,7 +44,11 @@ async function extractPdfText(file: File) {
 
   const pageTexts: string[] = [];
 
-  for (let pageNumber = 1; pageNumber <= pdfDocument.numPages; pageNumber += 1) {
+  for (
+    let pageNumber = 1;
+    pageNumber <= pdfDocument.numPages;
+    pageNumber += 1
+  ) {
     const page = await pdfDocument.getPage(pageNumber);
     const textContent = await page.getTextContent();
 
@@ -151,10 +158,13 @@ async function uploadPdfToImageKit(file: File) {
   formData.append('folder', '/vox-academic/documents');
   formData.append('useUniqueFileName', 'true');
 
-  const response = await fetch('https://upload.imagekit.io/api/v1/files/upload', {
-    method: 'POST',
-    body: formData,
-  });
+  const response = await fetch(
+    'https://upload.imagekit.io/api/v1/files/upload',
+    {
+      method: 'POST',
+      body: formData,
+    },
+  );
   const payload = (await response.json()) as ImageKitUploadResponse;
 
   if (!response.ok || !payload.url || !payload.fileId) {
@@ -197,13 +207,19 @@ async function persistDocument(payload: {
   const responsePayload = (await response.json()) as { message?: string };
 
   if (!response.ok) {
-    throw new Error(responsePayload.message || 'Document metadata could not be saved.');
+    throw new Error(
+      responsePayload.message || 'Document metadata could not be saved.',
+    );
   }
 
   return responsePayload;
 }
 
-export default function EmptyUploadState({ onUploadSuccess }: { onUploadSuccess: (doc: any) => void }) {
+export default function EmptyUploadState({
+  onUploadSuccess,
+}: {
+  onUploadSuccess: (doc: any) => void;
+}) {
   const {
     setCleanedTextForSpeech,
     setCurrentSentence,
@@ -250,12 +266,16 @@ export default function EmptyUploadState({ onUploadSuccess }: { onUploadSuccess:
       const { pageTexts, fullText } = await extractPdfText(file);
 
       if (!fullText) {
-        throw new Error('No readable text was found in this PDF. Scanned PDFs need OCR.');
+        throw new Error(
+          'No readable text was found in this PDF. Scanned PDFs need OCR.',
+        );
       }
 
       const documentTitle = deriveDocumentTitle(file, fullText);
       const [documentSummary, imageKitUpload] = await Promise.all([
-        generateDocumentSummary(fullText).catch(() => deriveDocumentSummary(fullText)),
+        generateDocumentSummary(fullText).catch(() =>
+          deriveDocumentSummary(fullText),
+        ),
         uploadPdfToImageKit(file),
       ]);
 
@@ -276,7 +296,8 @@ export default function EmptyUploadState({ onUploadSuccess }: { onUploadSuccess:
       setCurrentSentence(fullText);
       onUploadSuccess(newDocument);
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to read the PDF.';
+      const message =
+        error instanceof Error ? error.message : 'Failed to read the PDF.';
       setErrorMessage(message);
     } finally {
       setIsLoading(false);
@@ -303,8 +324,8 @@ export default function EmptyUploadState({ onUploadSuccess }: { onUploadSuccess:
           </span>
         </h1>
         <p className="text-sm text-slate-400">
-          Upload an academic paper or search the web to transform static text into an interactive
-          audio experience.
+          Upload an academic paper or search the web to transform static text
+          into an interactive audio experience.
         </p>
       </div>
 
@@ -312,9 +333,12 @@ export default function EmptyUploadState({ onUploadSuccess }: { onUploadSuccess:
         /* Processing/Loading State */
         <div className="flex flex-col items-center justify-center rounded-2xl border border-white/10 bg-white/5 p-12 text-center backdrop-blur-xl min-h-80">
           <Loader2 className="h-10 w-10 animate-spin text-blue-500" />
-          <h3 className="mt-4 text-lg font-semibold text-white">Analyzing Document...</h3>
+          <h3 className="mt-4 text-lg font-semibold text-white">
+            Analyzing Document...
+          </h3>
           <p className="mt-2 text-sm text-slate-400 max-w-xs">
-            Extracting structural milestones, layout structures, and building AI insights.
+            Extracting structural milestones, layout structures, and building AI
+            insights.
           </p>
         </div>
       ) : (
@@ -326,10 +350,11 @@ export default function EmptyUploadState({ onUploadSuccess }: { onUploadSuccess:
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
             onClick={() => fileInputRef.current?.click()}
-            className={`group relative flex flex-col items-center justify-center rounded-2xl border-2 border-dashed p-8 text-center backdrop-blur-xl cursor-pointer transition-all duration-300 min-h-55 ${isDragging
+            className={`group relative flex flex-col items-center justify-center rounded-2xl border-2 border-dashed p-8 text-center backdrop-blur-xl cursor-pointer transition-all duration-300 min-h-55 ${
+              isDragging
                 ? 'border-blue-500 bg-blue-500/10 shadow-[0_0_30px_rgba(59,130,246,0.2)]'
                 : 'border-white/10 bg-white/3 hover:border-white/20 hover:bg-white/5'
-              }`}
+            }`}
           >
             <input
               type="file"
@@ -343,7 +368,9 @@ export default function EmptyUploadState({ onUploadSuccess }: { onUploadSuccess:
               <Upload className="h-6 w-6" />
             </div>
 
-            <h3 className="mt-4 text-base font-semibold text-white">Upload your PDF</h3>
+            <h3 className="mt-4 text-base font-semibold text-white">
+              Upload your PDF
+            </h3>
             <p className="mt-1 text-xs text-slate-400">
               Drag & drop your academic paper here, or browse local files
             </p>
@@ -372,7 +399,9 @@ export default function EmptyUploadState({ onUploadSuccess }: { onUploadSuccess:
                 <Globe className="h-4 w-4" />
               </div>
               <div>
-                <h4 className="text-sm font-semibold text-white">Browse over Internet</h4>
+                <h4 className="text-sm font-semibold text-white">
+                  Browse over Internet
+                </h4>
                 <p className="text-xs text-slate-400">
                   Discover and extract from open-access web materials
                 </p>

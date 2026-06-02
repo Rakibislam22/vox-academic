@@ -23,5 +23,6 @@ const PDFSchema: Schema = new Schema<IPDFDocument>(
 );
 
 const PDFDocument =
-  mongoose.models.PDFDocument || mongoose.model<IPDFDocument>('PDFDocument', PDFSchema);
+  mongoose.models.PDFDocument ||
+  mongoose.model<IPDFDocument>('PDFDocument', PDFSchema);
 export default PDFDocument;

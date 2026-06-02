@@ -64,7 +64,11 @@ const VideoSlider = () => {
             className="absolute inset-0 transition-opacity duration-700 ease-in-out"
             style={{
               opacity:
-                isActive && isTransitioning ? 0 : isActive || (isNext && isTransitioning) ? 1 : 0,
+                isActive && isTransitioning
+                  ? 0
+                  : isActive || (isNext && isTransitioning)
+                    ? 1
+                    : 0,
               zIndex: isNext ? 10 : 5,
             }}
           >

@@ -10,7 +10,11 @@ export const runtime = 'nodejs';
 
 const documentPayloadSchema = z
   .object({
-    title: z.string().trim().min(1, 'Title is required').max(240, 'Title is too long'),
+    title: z
+      .string()
+      .trim()
+      .min(1, 'Title is required')
+      .max(240, 'Title is too long'),
     fileUrl: z.string().trim().url('A valid ImageKit file URL is required'),
     imageKitFileId: z.string().trim().min(1, 'ImageKit file ID is required'),
     extractedText: z
@@ -42,8 +46,15 @@ type StoredDocumentRecord = {
   lastReadAt?: Date;
 };
 
-function jsonError(status: number, message: string, details?: Record<string, unknown>) {
-  return NextResponse.json({ ok: false, message, ...(details ?? {}) }, { status });
+function jsonError(
+  status: number,
+  message: string,
+  details?: Record<string, unknown>,
+) {
+  return NextResponse.json(
+    { ok: false, message, ...(details ?? {}) },
+    { status },
+  );
 }
 
 async function getAuthenticatedUserId() {
@@ -80,7 +91,9 @@ export async function POST(request: Request) {
     const parsed = documentPayloadSchema.safeParse(body);
 
     if (!parsed.success) {
-      return jsonError(400, 'Invalid document payload', { issues: parsed.error.flatten() });
+      return jsonError(400, 'Invalid document payload', {
+        issues: parsed.error.flatten(),
+      });
     }
 
     if (parsed.data.userId && parsed.data.userId !== authenticatedUserId) {
@@ -98,14 +111,25 @@ export async function POST(request: Request) {
       summary: parsed.data.summary,
     });
 
-    return NextResponse.json({ ok: true, document: serializeDocument(document) }, { status: 201 });
+    return NextResponse.json(
+      { ok: true, document: serializeDocument(document) },
+      { status: 201 },
+    );
   } catch (error) {
     if (error instanceof SyntaxError) {
       return jsonError(400, 'Invalid JSON request body');
     }
 
-    if (typeof error === 'object' && error !== null && 'code' in error && error.code === 11000) {
-      return jsonError(409, 'A document with this ImageKit file ID already exists');
+    if (
+      typeof error === 'object' &&
+      error !== null &&
+      'code' in error &&
+      error.code === 11000
+    ) {
+      return jsonError(
+        409,
+        'A document with this ImageKit file ID already exists',
+      );
     }
 
     console.error('Create document error:', error);
@@ -150,7 +174,10 @@ export async function GET(request: Request) {
       query.summary = { $exists: true, $ne: '' };
     }
 
-    const sortQuery = normalizedView === 'recent' ? { lastReadAt: -1, createdAt: -1 } : { createdAt: -1 };
+    const sortQuery =
+      normalizedView === 'recent'
+        ? { lastReadAt: -1, createdAt: -1 }
+        : { createdAt: -1 };
 
     const documents = await StoredDocument.find(query)
       .sort(sortQuery as any)
@@ -193,29 +220,43 @@ export async function DELETE(request: Request) {
     }
 
     if (String(document.userId) !== authenticatedUserId) {
-      return jsonError(403, 'Cannot delete a document belonging to another user');
+      return jsonError(
+        403,
+        'Cannot delete a document belonging to another user',
+      );
     }
 
     // ImageKit Cloud Cleanup
     const imageKitFileId = document.imageKitFileId;
     if (imageKitFileId && process.env.IMAGEKIT_PRIVATE_KEY) {
-      const privateKeyBase64 = Buffer.from(process.env.IMAGEKIT_PRIVATE_KEY + ':').toString('base64');
-      const imageKitResponse = await fetch(`https://api.imagekit.io/v1/files/${imageKitFileId}`, {
-        method: 'DELETE',
-        headers: {
-          Authorization: `Basic ${privateKeyBase64}`,
+      const privateKeyBase64 = Buffer.from(
+        process.env.IMAGEKIT_PRIVATE_KEY + ':',
+      ).toString('base64');
+      const imageKitResponse = await fetch(
+        `https://api.imagekit.io/v1/files/${imageKitFileId}`,
+        {
+          method: 'DELETE',
+          headers: {
+            Authorization: `Basic ${privateKeyBase64}`,
+          },
         },
-      });
+      );
 
       if (!imageKitResponse.ok) {
-        console.warn(`ImageKit deletion warning for ${imageKitFileId}:`, await imageKitResponse.text());
+        console.warn(
+          `ImageKit deletion warning for ${imageKitFileId}:`,
+          await imageKitResponse.text(),
+        );
       }
     }
 
     // MongoDB Document Purge
     await StoredDocument.findByIdAndDelete(documentId);
 
-    return NextResponse.json({ ok: true, message: 'Document completely purged' }, { status: 200 });
+    return NextResponse.json(
+      { ok: true, message: 'Document completely purged' },
+      { status: 200 },
+    );
   } catch (error) {
     console.error('Delete document error:', error);
     return jsonError(500, 'Internal server error');

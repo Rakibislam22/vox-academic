@@ -9,10 +9,36 @@ const projectRoot = path.resolve(__dirname, '..');
 const publicDir = path.join(projectRoot, 'public');
 
 const sourceCandidates = [
-  path.join(projectRoot, 'node_modules', 'pdfjs-dist', 'build', 'pdf.worker.min.mjs'),
-  path.join(projectRoot, 'node_modules', 'pdfjs-dist', 'legacy', 'build', 'pdf.worker.min.mjs'),
-  path.join(projectRoot, 'node_modules', 'pdfjs-dist', 'build', 'pdf.worker.min.js'),
-  path.join(projectRoot, 'node_modules', 'pdfjs-dist', 'legacy', 'build', 'pdf.worker.min.js'),
+  path.join(
+    projectRoot,
+    'node_modules',
+    'pdfjs-dist',
+    'build',
+    'pdf.worker.min.mjs',
+  ),
+  path.join(
+    projectRoot,
+    'node_modules',
+    'pdfjs-dist',
+    'legacy',
+    'build',
+    'pdf.worker.min.mjs',
+  ),
+  path.join(
+    projectRoot,
+    'node_modules',
+    'pdfjs-dist',
+    'build',
+    'pdf.worker.min.js',
+  ),
+  path.join(
+    projectRoot,
+    'node_modules',
+    'pdfjs-dist',
+    'legacy',
+    'build',
+    'pdf.worker.min.js',
+  ),
 ];
 
 async function findFirstExistingPath(paths) {
@@ -40,7 +66,10 @@ async function main() {
   await mkdir(publicDir, { recursive: true });
 
   const destinationExt = path.extname(sourcePath) === '.js' ? '.js' : '.mjs';
-  const destinationPath = path.join(publicDir, `pdf.worker.min${destinationExt}`);
+  const destinationPath = path.join(
+    publicDir,
+    `pdf.worker.min${destinationExt}`,
+  );
 
   await copyFile(sourcePath, destinationPath);
 

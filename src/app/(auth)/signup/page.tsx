@@ -76,8 +76,8 @@ export default function SignupPage() {
                 Start building your academic reading workspace.
               </h1>
               <p className="mt-4 max-w-md text-sm leading-7 text-white/70">
-                Create a secure account to upload PDFs, save summaries, and return to your dashboard
-                from any device.
+                Create a secure account to upload PDFs, save summaries, and
+                return to your dashboard from any device.
               </p>
             </div>
 
@@ -99,7 +99,9 @@ export default function SignupPage() {
               <span className="inline-flex rounded-full border border-cyan-400/30 bg-cyan-400/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.24em] text-cyan-200">
                 Create account
               </span>
-              <h1 className="mt-4 text-3xl font-semibold text-white">Sign up</h1>
+              <h1 className="mt-4 text-3xl font-semibold text-white">
+                Sign up
+              </h1>
               <p className="mt-2 text-sm text-white/65">
                 Create a new account with your name, email, and password.
               </p>
@@ -114,7 +116,9 @@ export default function SignupPage() {
 
             <form className="mt-8 space-y-4" onSubmit={handleSubmit(onSubmit)}>
               <label className="form-control w-full">
-                <span className="label-text mb-2 text-sm font-medium text-white/80">Name</span>
+                <span className="label-text mb-2 text-sm font-medium text-white/80">
+                  Name
+                </span>
                 <input
                   type="text"
                   autoComplete="name"
@@ -123,12 +127,16 @@ export default function SignupPage() {
                   {...register('name')}
                 />
                 {errors.name && (
-                  <span className="mt-2 text-sm text-red-300">{errors.name.message}</span>
+                  <span className="mt-2 text-sm text-red-300">
+                    {errors.name.message}
+                  </span>
                 )}
               </label>
 
               <label className="form-control w-full">
-                <span className="label-text mb-2 text-sm font-medium text-white/80">Email</span>
+                <span className="label-text mb-2 text-sm font-medium text-white/80">
+                  Email
+                </span>
                 <input
                   type="email"
                   autoComplete="email"
@@ -137,12 +145,16 @@ export default function SignupPage() {
                   {...register('email')}
                 />
                 {errors.email && (
-                  <span className="mt-2 text-sm text-red-300">{errors.email.message}</span>
+                  <span className="mt-2 text-sm text-red-300">
+                    {errors.email.message}
+                  </span>
                 )}
               </label>
 
               <label className="form-control w-full">
-                <span className="label-text mb-2 text-sm font-medium text-white/80">Password</span>
+                <span className="label-text mb-2 text-sm font-medium text-white/80">
+                  Password
+                </span>
                 <input
                   type="password"
                   autoComplete="new-password"
@@ -151,11 +163,15 @@ export default function SignupPage() {
                   {...register('password')}
                 />
                 {errors.password && (
-                  <span className="mt-2 text-sm text-red-300">{errors.password.message}</span>
+                  <span className="mt-2 text-sm text-red-300">
+                    {errors.password.message}
+                  </span>
                 )}
               </label>
 
-              {errors.root && <p className="text-sm text-red-300">{errors.root.message}</p>}
+              {errors.root && (
+                <p className="text-sm text-red-300">{errors.root.message}</p>
+              )}
 
               <button
                 type="submit"
@@ -168,7 +184,10 @@ export default function SignupPage() {
 
             <p className="mt-6 text-center text-sm text-white/70">
               Already have an account?{' '}
-              <Link href="/login" className="font-medium text-cyan-200 hover:text-cyan-100">
+              <Link
+                href="/login"
+                className="font-medium text-cyan-200 hover:text-cyan-100"
+              >
                 Sign in
               </Link>
             </p>

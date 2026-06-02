@@ -6,10 +6,26 @@ const HowItWorks = () => {
       </h2>
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         {[
-          { step: '01', title: 'Upload PDF', desc: 'Drop your academic paper or document' },
-          { step: '02', title: 'AI Processing', desc: 'Our AI analyzes and structures content' },
-          { step: '03', title: 'Audio Generation', desc: 'Natural voice converts to audio' },
-          { step: '04', title: 'Smart Learning', desc: 'Master concepts with interactive tools' },
+          {
+            step: '01',
+            title: 'Upload PDF',
+            desc: 'Drop your academic paper or document',
+          },
+          {
+            step: '02',
+            title: 'AI Processing',
+            desc: 'Our AI analyzes and structures content',
+          },
+          {
+            step: '03',
+            title: 'Audio Generation',
+            desc: 'Natural voice converts to audio',
+          },
+          {
+            step: '04',
+            title: 'Smart Learning',
+            desc: 'Master concepts with interactive tools',
+          },
         ].map((item, idx) => (
           <div key={idx} className="group relative">
             <div className="panel p-6 h-full bg-linear-to-br from-navy-dark to-navy-darker/50 border-light/40 hover:border-light/80 transition-all duration-300 cursor-pointer">

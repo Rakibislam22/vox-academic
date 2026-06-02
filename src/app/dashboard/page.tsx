@@ -9,12 +9,22 @@ import RecentReadsView from './RecentReadsView';
 import SummariesView from './SummariesView';
 import SettingsView from './SettingsView';
 
-const PDFPanel = dynamic(() => import('@/components/dashboard/PDFPanel'), { ssr: false });
-const SummaryPanel = dynamic(() => import('@/components/dashboard/SummaryPanel'), { ssr: false });
-const ControlBar = dynamic(() => import('@/components/dashboard/ControlBar'), { ssr: false });
-const EmptyUploadState = dynamic(() => import('@/components/dashboard/EmptyUploadState'), {
+const PDFPanel = dynamic(() => import('@/components/dashboard/PDFPanel'), {
   ssr: false,
 });
+const SummaryPanel = dynamic(
+  () => import('@/components/dashboard/SummaryPanel'),
+  { ssr: false },
+);
+const ControlBar = dynamic(() => import('@/components/dashboard/ControlBar'), {
+  ssr: false,
+});
+const EmptyUploadState = dynamic(
+  () => import('@/components/dashboard/EmptyUploadState'),
+  {
+    ssr: false,
+  },
+);
 
 type TtsVoice = 'en-US-AndrewNeural' | 'en-US-EmmaNeural';
 
@@ -29,20 +39,23 @@ export default function DashboardPage() {
     documentsRefreshKey,
     refreshDocuments,
   } = usePDFContext();
-  const textForAudio = useMemo(() => cleanedTextForSpeech.trim(), [cleanedTextForSpeech]);
+  const textForAudio = useMemo(
+    () => cleanedTextForSpeech.trim(),
+    [cleanedTextForSpeech],
+  );
 
   const [dbDocuments, setDbDocuments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeMobileTab, setActiveMobileTab] = useState<'pdf' | 'insights'>('pdf');
+  const [activeMobileTab, setActiveMobileTab] = useState<'pdf' | 'insights'>(
+    'pdf',
+  );
   const [hasFile, setHasFile] = useState(false);
   const [playbackSpeed, setPlaybackSpeed] = useState(1);
-  const [selectedVoice, setSelectedVoice] = useState<TtsVoice>('en-US-AndrewNeural');
+  const [selectedVoice, setSelectedVoice] =
+    useState<TtsVoice>('en-US-AndrewNeural');
 
-  const { isPlaying, togglePlayPause, isLoadingAudio, audioError } = useAudioReader(
-    textForAudio,
-    selectedVoice,
-    playbackSpeed,
-  );
+  const { isPlaying, togglePlayPause, isLoadingAudio, audioError } =
+    useAudioReader(textForAudio, selectedVoice, playbackSpeed);
 
   // Reset workspace layout when navigating through the sidebar
   useEffect(() => {
@@ -80,7 +93,12 @@ export default function DashboardPage() {
       }
       setHasFile(true);
     },
-    [setDocumentTitle, setDocumentSummary, setCleanedTextForSpeech, setUploadedPdfFile],
+    [
+      setDocumentTitle,
+      setDocumentSummary,
+      setCleanedTextForSpeech,
+      setUploadedPdfFile,
+    ],
   );
 
   const handleUploadSuccess = useCallback(
@@ -145,19 +163,21 @@ export default function DashboardPage() {
                   <div className="grid grid-cols-2 gap-1">
                     <button
                       onClick={() => setActiveMobileTab('pdf')}
-                      className={`rounded-xl px-4 py-2 text-sm font-medium transition-transform active:scale-95 ${activeMobileTab === 'pdf'
+                      className={`rounded-xl px-4 py-2 text-sm font-medium transition-transform active:scale-95 ${
+                        activeMobileTab === 'pdf'
                           ? 'bg-white/8 text-white shadow-[0_0_20px_rgba(26,140,255,0.14)]'
                           : 'text-slate-400'
-                        }`}
+                      }`}
                     >
                       PDF View
                     </button>
                     <button
                       onClick={() => setActiveMobileTab('insights')}
-                      className={`rounded-xl px-4 py-2 text-sm font-medium transition-transform active:scale-95 ${activeMobileTab === 'insights'
+                      className={`rounded-xl px-4 py-2 text-sm font-medium transition-transform active:scale-95 ${
+                        activeMobileTab === 'insights'
                           ? 'bg-white/8 text-white shadow-[0_0_20px_rgba(26,140,255,0.14)]'
                           : 'text-slate-400'
-                        }`}
+                      }`}
                     >
                       AI Insights
                     </button>
@@ -204,8 +224,8 @@ export default function DashboardPage() {
               hasText={Boolean(textForAudio)}
               compact={hasFile}
               onPlayPause={handlePlayPause}
-              onSkipBackward={() => { }} // Not applicable for Web Speech API
-              onSkipForward={() => { }} // Not applicable for Web Speech API
+              onSkipBackward={() => {}} // Not applicable for Web Speech API
+              onSkipForward={() => {}} // Not applicable for Web Speech API
               onSpeedChange={setPlaybackSpeed}
               selectedVoice={selectedVoice}
               onVoiceChange={(voice) => setSelectedVoice(voice as TtsVoice)}

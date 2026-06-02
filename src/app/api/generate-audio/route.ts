@@ -133,7 +133,10 @@ function createGeminiFetch() {
         dispatcher,
       } as RequestInit & { dispatcher: unknown });
   } catch (error) {
-    console.warn('Invalid Gemini proxy configuration, continuing without proxy:', error);
+    console.warn(
+      'Invalid Gemini proxy configuration, continuing without proxy:',
+      error,
+    );
     return undefined;
   }
 }
@@ -151,7 +154,11 @@ function getGeminiClient() {
   return geminiClient;
 }
 
-function buildJsonError(status: number, message: string, details?: Record<string, unknown>) {
+function buildJsonError(
+  status: number,
+  message: string,
+  details?: Record<string, unknown>,
+) {
   return NextResponse.json(
     {
       ok: false,
@@ -165,7 +172,9 @@ function buildJsonError(status: number, message: string, details?: Record<string
   );
 }
 
-async function parseRequestBody(request: Request): Promise<GenerateAudioRequest | null> {
+async function parseRequestBody(
+  request: Request,
+): Promise<GenerateAudioRequest | null> {
   let rawBody: unknown;
 
   try {
@@ -214,12 +223,14 @@ function resolveVoice(request: Request) {
 }
 
 function extractAudioBytes(response: GeminiAudioResponse) {
-  const inlineOutput = response.outputAudio?.data || response.output_audio?.data;
+  const inlineOutput =
+    response.outputAudio?.data || response.output_audio?.data;
 
   if (inlineOutput) {
     return {
       audioBytes: Buffer.from(inlineOutput, 'base64'),
-      mimeType: response.outputAudio?.mimeType || response.output_audio?.mime_type,
+      mimeType:
+        response.outputAudio?.mimeType || response.output_audio?.mime_type,
     };
   }
 
@@ -247,7 +258,11 @@ function parseAudioMetadata(mimeType?: string) {
   };
 }
 
-function encodePcmToMp3(pcmBytes: Buffer, sampleRate: number, channels: number) {
+function encodePcmToMp3(
+  pcmBytes: Buffer,
+  sampleRate: number,
+  channels: number,
+) {
   if (channels !== 1) {
     throw new Error(`Unsupported Gemini TTS channel count: ${channels}`);
   }
@@ -256,7 +271,11 @@ function encodePcmToMp3(pcmBytes: Buffer, sampleRate: number, channels: number) 
     throw new Error('Gemini PCM output is not aligned to 16-bit samples');
   }
 
-  const samples = new Int16Array(pcmBytes.buffer, pcmBytes.byteOffset, pcmBytes.byteLength / 2);
+  const samples = new Int16Array(
+    pcmBytes.buffer,
+    pcmBytes.byteOffset,
+    pcmBytes.byteLength / 2,
+  );
   const encoder = new Mp3Encoder(1, sampleRate, 128);
   const mp3Chunks: Buffer[] = [];
   const blockSize = 1_152;
@@ -306,7 +325,9 @@ function isGeminiNetworkError(error: unknown) {
   }
 
   const message = error.message.toLowerCase();
-  const cause = error.cause as { code?: string; causeCode?: string } | undefined;
+  const cause = error.cause as
+    | { code?: string; causeCode?: string }
+    | undefined;
 
   return (
     message.includes('fetch failed') ||
@@ -324,21 +345,32 @@ export async function POST(request: Request) {
   const client = getGeminiClient();
 
   if (!client) {
-    return buildJsonError(500, 'Server configuration error: missing GEMINI_API_KEY', {
-      code: 'MISSING_GEMINI_API_KEY',
-    });
+    return buildJsonError(
+      500,
+      'Server configuration error: missing GEMINI_API_KEY',
+      {
+        code: 'MISSING_GEMINI_API_KEY',
+      },
+    );
   }
 
   const parsedBody = await parseRequestBody(request);
 
   if (!parsedBody) {
-    return buildJsonError(400, 'Invalid request body. Expected JSON payload: { text: string }', {
-      code: 'INVALID_REQUEST_BODY',
-    });
+    return buildJsonError(
+      400,
+      'Invalid request body. Expected JSON payload: { text: string }',
+      {
+        code: 'INVALID_REQUEST_BODY',
+      },
+    );
   }
 
   const timeoutController = new AbortController();
-  const timeout = setTimeout(() => timeoutController.abort(), REQUEST_TIMEOUT_MS);
+  const timeout = setTimeout(
+    () => timeoutController.abort(),
+    REQUEST_TIMEOUT_MS,
+  );
 
   try {
     const preferredVoice = resolveVoice(request);
@@ -363,7 +395,10 @@ export async function POST(request: Request) {
       new Promise<never>((_, reject) => {
         timeoutController.signal.addEventListener(
           'abort',
-          () => reject(new DOMException('Gemini TTS request timed out', 'AbortError')),
+          () =>
+            reject(
+              new DOMException('Gemini TTS request timed out', 'AbortError'),
+            ),
           { once: true },
         );
       }),
@@ -377,8 +412,12 @@ export async function POST(request: Request) {
       });
     }
 
-    const { sampleRate, channels } = parseAudioMetadata(extractedAudio.mimeType);
-    const audioBytes = extractedAudio.mimeType?.toLowerCase().includes('audio/l16')
+    const { sampleRate, channels } = parseAudioMetadata(
+      extractedAudio.mimeType,
+    );
+    const audioBytes = extractedAudio.mimeType
+      ?.toLowerCase()
+      .includes('audio/l16')
       ? encodePcmToMp3(extractedAudio.audioBytes, sampleRate, channels)
       : extractedAudio.audioBytes;
 
@@ -398,16 +437,24 @@ export async function POST(request: Request) {
     }
 
     if (isGeminiNetworkError(error)) {
-      return buildJsonError(503, 'Gemini API is unreachable from this server environment', {
-        code: 'GEMINI_NETWORK_UNREACHABLE',
-        proxyConfigured: Boolean(resolveProxyUrl()),
-      });
+      return buildJsonError(
+        503,
+        'Gemini API is unreachable from this server environment',
+        {
+          code: 'GEMINI_NETWORK_UNREACHABLE',
+          proxyConfigured: Boolean(resolveProxyUrl()),
+        },
+      );
     }
 
     if (isGeminiAudioError(error)) {
-      return buildJsonError(502, 'Gemini TTS could not generate audio for this request', {
-        code: 'GEMINI_TTS_AUDIO_ERROR',
-      });
+      return buildJsonError(
+        502,
+        'Gemini TTS could not generate audio for this request',
+        {
+          code: 'GEMINI_TTS_AUDIO_ERROR',
+        },
+      );
     }
 
     console.error('generate-audio error:', error);

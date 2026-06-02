@@ -14,7 +14,9 @@ const UseCase = () => {
             key={idx}
             className="group relative overflow-hidden rounded-xl border-light transition-all duration-300 cursor-pointer"
           >
-            <div className={`absolute inset-0 bg-linear-to-br ${usecase.color} to-transparent`} />
+            <div
+              className={`absolute inset-0 bg-linear-to-br ${usecase.color} to-transparent`}
+            />
             <div className="relative p-8 h-64 flex flex-col justify-between">
               <div className="text-6xl group-hover:scale-125 transition-transform duration-300 opacity-60 group-hover:opacity-100">
                 {usecase.emoji}

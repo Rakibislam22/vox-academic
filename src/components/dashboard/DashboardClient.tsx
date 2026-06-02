@@ -150,7 +150,11 @@ export default function DashboardClient({ children, session }: Props) {
               className="fixed inset-0 z-40 bg-black/40 lg:hidden"
               onClick={() => setSidebarOpen(false)}
             />
-            <Sidebar session={session} isDrawer onClose={() => setSidebarOpen(false)} />
+            <Sidebar
+              session={session}
+              isDrawer
+              onClose={() => setSidebarOpen(false)}
+            />
           </>
         )}
 

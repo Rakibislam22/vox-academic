@@ -19,14 +19,18 @@ if (process.env.NODE_ENV !== 'production') {
 
 export async function connectToDatabase() {
   if (!MONGO_URI) {
-    throw new Error('Please define the MONGO_URI environment variable inside .env');
+    throw new Error(
+      'Please define the MONGO_URI environment variable inside .env',
+    );
   }
 
   if (cached.conn) return cached.conn;
 
   if (!cached.promise) {
     mongoose.set('strictQuery', false);
-    cached.promise = mongoose.connect(MONGO_URI).then((instance: typeof mongoose) => instance);
+    cached.promise = mongoose
+      .connect(MONGO_URI)
+      .then((instance: typeof mongoose) => instance);
   }
 
   cached.conn = await cached.promise;

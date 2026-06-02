@@ -1,4 +1,8 @@
-import mongoose, { Schema, type Document as MongooseDocument, type Types } from 'mongoose';
+import mongoose, {
+  Schema,
+  type Document as MongooseDocument,
+  type Types,
+} from 'mongoose';
 
 export interface IStoredDocument extends MongooseDocument {
   userId: Types.ObjectId;
@@ -13,7 +17,12 @@ export interface IStoredDocument extends MongooseDocument {
 
 const DocumentSchema = new Schema<IStoredDocument>(
   {
-    userId: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
+    userId: {
+      type: Schema.Types.ObjectId,
+      ref: 'User',
+      required: true,
+      index: true,
+    },
     title: { type: String, required: true, trim: true },
     fileUrl: { type: String, required: true, trim: true },
     imageKitFileId: { type: String, required: true, trim: true },
@@ -27,6 +36,7 @@ DocumentSchema.index({ userId: 1, createdAt: -1 });
 DocumentSchema.index({ imageKitFileId: 1 }, { unique: true });
 
 const StoredDocument =
-  mongoose.models.Document || mongoose.model<IStoredDocument>('Document', DocumentSchema);
+  mongoose.models.Document ||
+  mongoose.model<IStoredDocument>('Document', DocumentSchema);
 
 export default StoredDocument;

@@ -1,6 +1,10 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 
-export function useAudioReader(textForAudio: string, selectedVoice: string, playbackSpeed: number) {
+export function useAudioReader(
+  textForAudio: string,
+  selectedVoice: string,
+  playbackSpeed: number,
+) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentWordIndex, setCurrentWordIndex] = useState(-1);
   const [isLoadingAudio, setIsLoadingAudio] = useState(false);
@@ -74,10 +78,15 @@ export function useAudioReader(textForAudio: string, selectedVoice: string, play
       utterance.onboundary = (event) => {
         if (event.name === 'word') {
           const charIndex = event.charIndex;
-          const remainingTextUpToBoundary = utteranceText.substring(0, charIndex).trim();
+          const remainingTextUpToBoundary = utteranceText
+            .substring(0, charIndex)
+            .trim();
           const relativeWordIndex =
-            remainingTextUpToBoundary === '' ? 0 : remainingTextUpToBoundary.split(/\s+/).length;
-          const absoluteWordIndex = startWordIndexRef.current + relativeWordIndex;
+            remainingTextUpToBoundary === ''
+              ? 0
+              : remainingTextUpToBoundary.split(/\s+/).length;
+          const absoluteWordIndex =
+            startWordIndexRef.current + relativeWordIndex;
           const totalWordsLength = words.length;
 
           if (absoluteWordIndex >= 0 && absoluteWordIndex < totalWordsLength) {

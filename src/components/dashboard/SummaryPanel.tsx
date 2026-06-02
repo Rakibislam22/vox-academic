@@ -4,7 +4,8 @@ import { useMemo } from 'react';
 import { usePDFContext } from './PDFContext';
 
 const waveformHeights = [
-  34, 58, 44, 76, 52, 63, 41, 71, 49, 68, 37, 55, 62, 46, 74, 39, 57, 69, 43, 61, 48, 73, 35, 66,
+  34, 58, 44, 76, 52, 63, 41, 71, 49, 68, 37, 55, 62, 46, 74, 39, 57, 69, 43,
+  61, 48, 73, 35, 66,
 ];
 
 const stopWords = new Set([
@@ -91,7 +92,9 @@ function buildKeyConcepts(text: string) {
   }
 
   return [...counts.entries()]
-    .sort((left, right) => right[1] - left[1] || left[0].localeCompare(right[0]))
+    .sort(
+      (left, right) => right[1] - left[1] || left[0].localeCompare(right[0]),
+    )
     .slice(0, 3)
     .map(([word, count]) => ({
       label: word.replace(/\b\w/g, (character) => character.toUpperCase()),
@@ -103,9 +106,13 @@ function buildKeyConcepts(text: string) {
 }
 
 export default function SummaryPanel() {
-  const { cleanedTextForSpeech, documentSummary, documentTitle } = usePDFContext();
+  const { cleanedTextForSpeech, documentSummary, documentTitle } =
+    usePDFContext();
 
-  const insights = useMemo(() => buildKeyConcepts(cleanedTextForSpeech), [cleanedTextForSpeech]);
+  const insights = useMemo(
+    () => buildKeyConcepts(cleanedTextForSpeech),
+    [cleanedTextForSpeech],
+  );
 
   const studyTips = [
     'Take notes while listening to highlight personal connections',
@@ -127,7 +134,9 @@ export default function SummaryPanel() {
       <div className="flex-1 overflow-auto scrollbar-custom">
         <div className="px-5 sm:px-6 py-5 sm:py-6 border-b border-white/10">
           <div className="text-label accent-primary mb-4">Summary Report</div>
-          <p className="text-sm leading-6 text-slate-300/90">{documentSummary}</p>
+          <p className="text-sm leading-6 text-slate-300/90">
+            {documentSummary}
+          </p>
         </div>
 
         {/* Key Concepts */}
@@ -145,7 +154,9 @@ export default function SummaryPanel() {
                     <div className="text-label text-white group-hover:accent-primary transition-colors">
                       {insight.label}
                     </div>
-                    <p className="text-xs text-slate-400 mt-1">{insight.description}</p>
+                    <p className="text-xs text-slate-400 mt-1">
+                      {insight.description}
+                    </p>
                   </div>
                 </div>
               </div>

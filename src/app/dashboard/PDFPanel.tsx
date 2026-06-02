@@ -6,12 +6,18 @@ interface PDFPanelProps {
   onWordClick?: (wordIndex: number) => void;
 }
 
-export default function PDFPanel({ currentWordIndex, onWordClick }: PDFPanelProps) {
+export default function PDFPanel({
+  currentWordIndex,
+  onWordClick,
+}: PDFPanelProps) {
   const { cleanedTextForSpeech } = usePDFContext();
 
   // **Guideline 3: Preserve Full Text Flow**
   const words = useMemo(
-    () => (cleanedTextForSpeech.trim() ? cleanedTextForSpeech.trim().split(/\s+/) : []),
+    () =>
+      cleanedTextForSpeech.trim()
+        ? cleanedTextForSpeech.trim().split(/\s+/)
+        : [],
     [cleanedTextForSpeech],
   );
 
@@ -24,7 +30,9 @@ export default function PDFPanel({ currentWordIndex, onWordClick }: PDFPanelProp
             key={index}
             onClick={() => onWordClick?.(index)}
             className={`cursor-pointer transition-colors duration-150 hover:text-sky-400 ${
-              index === currentWordIndex ? 'bg-blue-500/40 text-blue-100 rounded-sm' : ''
+              index === currentWordIndex
+                ? 'bg-blue-500/40 text-blue-100 rounded-sm'
+                : ''
             }`}
           >
             {word}{' '}

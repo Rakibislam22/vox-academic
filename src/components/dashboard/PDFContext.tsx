@@ -1,9 +1,17 @@
 'use client';
 
 import { createContext, useContext, useState, ReactNode } from 'react';
-import { useSpeechSynthesisSync, type SpeechSyncState } from './useSpeechSynthesisSync';
+import {
+  useSpeechSynthesisSync,
+  type SpeechSyncState,
+} from './useSpeechSynthesisSync';
 
-export type ViewState = 'library' | 'recent' | 'summaries' | 'upload' | 'settings';
+export type ViewState =
+  | 'library'
+  | 'recent'
+  | 'summaries'
+  | 'upload'
+  | 'settings';
 
 interface PDFContextType {
   currentSentence: string;

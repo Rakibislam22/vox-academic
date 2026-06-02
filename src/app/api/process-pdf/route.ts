@@ -1,6 +1,9 @@
 import { GoogleGenAI } from '@google/genai';
 import { NextResponse } from 'next/server';
-import { processPdfRequestSchema, processPdfResponseSchema } from '@/lib/validations/process-pdf';
+import {
+  processPdfRequestSchema,
+  processPdfResponseSchema,
+} from '@/lib/validations/process-pdf';
 
 export const runtime = 'nodejs';
 
@@ -84,7 +87,11 @@ function buildSystemInstruction() {
   ].join('\n');
 }
 
-function buildJsonError(status: number, message: string, details?: Record<string, unknown>) {
+function buildJsonError(
+  status: number,
+  message: string,
+  details?: Record<string, unknown>,
+) {
   return NextResponse.json(
     {
       ok: false,
@@ -154,7 +161,9 @@ function getRetryAfterSecondsFromError(error: unknown) {
     return Number.isFinite(parsed) ? parsed : undefined;
   }
 
-  return getRetryAfterSecondsFromHeaders(candidate.response?.headers ?? candidate.headers);
+  return getRetryAfterSecondsFromHeaders(
+    candidate.response?.headers ?? candidate.headers,
+  );
 }
 
 function isGeminiRateLimitError(error: unknown) {
@@ -171,11 +180,16 @@ function isGeminiRateLimitError(error: unknown) {
       cause?: { code?: string; message?: string };
     };
 
-    if (candidate.status === 429 || candidate.response?.status === 429 || candidate.code === 429) {
+    if (
+      candidate.status === 429 ||
+      candidate.response?.status === 429 ||
+      candidate.code === 429
+    ) {
       return true;
     }
 
-    const message = `${candidate.message ?? ''} ${candidate.cause?.message ?? ''}`.toLowerCase();
+    const message =
+      `${candidate.message ?? ''} ${candidate.cause?.message ?? ''}`.toLowerCase();
     return (
       message.includes('429') ||
       message.includes('rate limit') ||
@@ -190,9 +204,13 @@ export async function POST(request: Request) {
   const client = getGeminiClient();
 
   if (!client) {
-    return buildJsonError(500, 'Server configuration error: missing GEMINI_API_KEY', {
-      code: 'MISSING_GEMINI_API_KEY',
-    });
+    return buildJsonError(
+      500,
+      'Server configuration error: missing GEMINI_API_KEY',
+      {
+        code: 'MISSING_GEMINI_API_KEY',
+      },
+    );
   }
 
   let body: unknown;
@@ -200,16 +218,22 @@ export async function POST(request: Request) {
   try {
     body = await request.json();
   } catch {
-    return buildJsonError(400, 'Invalid JSON payload', { code: 'INVALID_JSON' });
+    return buildJsonError(400, 'Invalid JSON payload', {
+      code: 'INVALID_JSON',
+    });
   }
 
   const parsedInput = processPdfRequestSchema.safeParse(body);
 
   if (!parsedInput.success) {
-    return buildJsonError(400, 'Invalid PDF processing payload. Expected { text: string }', {
-      code: 'INVALID_PDF_PROCESSING_PAYLOAD',
-      issues: parsedInput.error.flatten(),
-    });
+    return buildJsonError(
+      400,
+      'Invalid PDF processing payload. Expected { text: string }',
+      {
+        code: 'INVALID_PDF_PROCESSING_PAYLOAD',
+        issues: parsedInput.error.flatten(),
+      },
+    );
   }
 
   const controller = new AbortController();
@@ -253,11 +277,15 @@ export async function POST(request: Request) {
     const parsedOutput = processPdfResponseSchema.safeParse(parsedJson);
 
     if (!parsedOutput.success) {
-      return buildJsonError(502, 'Gemini output did not match the expected schema', {
-        code: 'INVALID_GEMINI_SCHEMA',
-        issues: parsedOutput.error.flatten(),
-        rawText,
-      });
+      return buildJsonError(
+        502,
+        'Gemini output did not match the expected schema',
+        {
+          code: 'INVALID_GEMINI_SCHEMA',
+          issues: parsedOutput.error.flatten(),
+          rawText,
+        },
+      );
     }
 
     return NextResponse.json(parsedOutput.data, { status: 200 });

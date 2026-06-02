@@ -18,10 +18,13 @@ export async function GET() {
     return jsonError(401, 'Authentication required');
   }
 
-  const publicKey = process.env.IMAGEKIT_PUBLIC_KEY || process.env.NEXT_PUBLIC_IMAGEKIT_PUBLIC_KEY;
+  const publicKey =
+    process.env.IMAGEKIT_PUBLIC_KEY ||
+    process.env.NEXT_PUBLIC_IMAGEKIT_PUBLIC_KEY;
   const privateKey = process.env.IMAGEKIT_PRIVATE_KEY;
   const urlEndpoint =
-    process.env.IMAGEKIT_URL_ENDPOINT || process.env.NEXT_PUBLIC_IMAGEKIT_URL_ENDPOINT;
+    process.env.IMAGEKIT_URL_ENDPOINT ||
+    process.env.NEXT_PUBLIC_IMAGEKIT_URL_ENDPOINT;
 
   if (!publicKey || !privateKey || !urlEndpoint) {
     return jsonError(500, 'ImageKit configuration is missing');
@@ -29,7 +32,9 @@ export async function GET() {
 
   const token = randomUUID();
   const expire = Math.floor(Date.now() / 1000) + AUTH_TTL_SECONDS;
-  const signature = createHmac('sha1', privateKey).update(`${token}${expire}`).digest('hex');
+  const signature = createHmac('sha1', privateKey)
+    .update(`${token}${expire}`)
+    .digest('hex');
 
   return NextResponse.json({
     ok: true,

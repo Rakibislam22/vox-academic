@@ -3,7 +3,9 @@ import { useSpeechSynthesisSync } from './useSpeechSynthesisSync';
 import { fetchGeneratedAudio } from './audioApi';
 
 export function useAudioController(text: string, voice = 'en-US-AndrewNeural') {
-  const [playbackMode, setPlaybackMode] = useState<'stream' | 'browser'>('stream');
+  const [playbackMode, setPlaybackMode] = useState<'stream' | 'browser'>(
+    'stream',
+  );
   const [isLoadingAudio, setIsLoadingAudio] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [playbackSpeed, setPlaybackSpeed] = useState(1);
@@ -68,8 +70,12 @@ export function useAudioController(text: string, voice = 'en-US-AndrewNeural') {
 
       if (!audioRef.current) {
         const audio = new Audio(url);
-        audio.addEventListener('timeupdate', () => setCurrentTime(audio.currentTime));
-        audio.addEventListener('loadedmetadata', () => setDuration(audio.duration));
+        audio.addEventListener('timeupdate', () =>
+          setCurrentTime(audio.currentTime),
+        );
+        audio.addEventListener('loadedmetadata', () =>
+          setDuration(audio.duration),
+        );
         audio.addEventListener('ended', () => setIsPlaying(false));
         audioRef.current = audio;
       } else {

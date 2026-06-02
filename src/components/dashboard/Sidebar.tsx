@@ -14,7 +14,11 @@ type Props = {
   session?: Session | null;
 };
 
-export default function Sidebar({ isDrawer = false, onClose, session: sessionProp }: Props) {
+export default function Sidebar({
+  isDrawer = false,
+  onClose,
+  session: sessionProp,
+}: Props) {
   const [documentCounts, setDocumentCounts] = useState({
     library: 0,
     recent: 0,
@@ -112,7 +116,10 @@ export default function Sidebar({ isDrawer = false, onClose, session: sessionPro
           )}
         </div>
 
-        <button onClick={() => setActiveView('upload')} className="w-full flex items-center justify-center gap-2 rounded-xl bg-linear-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-semibold text-sm py-3 px-4 shadow-[0_0_20px_rgba(37,99,235,0.2)] active:scale-98 transition-all mb-6">
+        <button
+          onClick={() => setActiveView('upload')}
+          className="w-full flex items-center justify-center gap-2 rounded-xl bg-linear-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-semibold text-sm py-3 px-4 shadow-[0_0_20px_rgba(37,99,235,0.2)] active:scale-98 transition-all mb-6"
+        >
           <Upload className="h-4 w-4" />
           <span>Upload PDF</span>
         </button>
@@ -136,10 +143,11 @@ export default function Sidebar({ isDrawer = false, onClose, session: sessionPro
               <button
                 key={item.id}
                 onClick={() => setActiveView(item.id as any)}
-                className={`flex w-full items-center gap-3 rounded-lg px-4 py-3 text-label transition-transform active:scale-95 whitespace-nowrap ${activeView === item.id
-                  ? 'border border-electric-blue/40 bg-electric-blue/20 text-electric-blue'
-                  : 'text-white/70 hover:bg-navy-dark hover:text-white/90'
-                  }`}
+                className={`flex w-full items-center gap-3 rounded-lg px-4 py-3 text-label transition-transform active:scale-95 whitespace-nowrap ${
+                  activeView === item.id
+                    ? 'border border-electric-blue/40 bg-electric-blue/20 text-electric-blue'
+                    : 'text-white/70 hover:bg-navy-dark hover:text-white/90'
+                }`}
               >
                 <span className="text-lg">{item.icon}</span>
                 <span className="flex-1 truncate text-left">{item.label}</span>
@@ -172,7 +180,9 @@ export default function Sidebar({ isDrawer = false, onClose, session: sessionPro
                 )}
               </div>
               <div className="flex-1 min-w-0">
-                <div className="text-label text-white/90 truncate">{displayName}</div>
+                <div className="text-label text-white/90 truncate">
+                  {displayName}
+                </div>
                 <div className="text-xs text-white/50 truncate">{email}</div>
                 <div className="mt-1 text-[11px] uppercase tracking-[0.18em] text-electric-blue/90">
                   {provider}
@@ -195,7 +205,9 @@ export default function Sidebar({ isDrawer = false, onClose, session: sessionPro
             </div>
             <div className="flex-1 min-w-0">
               <div className="text-label truncate">Guest</div>
-              <div className="text-xs text-white/50 truncate">Sign in to save progress</div>
+              <div className="text-xs text-white/50 truncate">
+                Sign in to save progress
+              </div>
             </div>
           </div>
         )}
