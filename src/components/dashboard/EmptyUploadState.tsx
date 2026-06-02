@@ -11,6 +11,29 @@ interface EmptyUploadStateProps {
 
 GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs';
 
+type ImageKitAuthResponse = {
+  ok: boolean;
+  publicKey: string;
+  urlEndpoint: string;
+  token: string;
+  expire: number;
+  signature: string;
+  message?: string;
+};
+
+type ImageKitUploadResponse = {
+  url?: string;
+  fileId?: string;
+  message?: string;
+};
+
+type ProcessPdfResponse = {
+  summary?: string;
+  error?: {
+    message?: string;
+  };
+};
+
 async function extractPdfText(file: File) {
   const pdfData = await file.arrayBuffer();
   const loadingTask = getDocument({ data: pdfData });
@@ -39,7 +62,10 @@ async function extractPdfText(file: File) {
     }
   }
 
-  return pageTexts.join('\n\n').trim();
+  return {
+    pageTexts,
+    fullText: pageTexts.join('\n\n').trim(),
+  };
 }
 
 function deriveDocumentTitle(file: File, extractedText: string) {
@@ -86,13 +112,105 @@ function deriveDocumentSummary(extractedText: string) {
   return `${words.slice(0, 40).join(' ')}${words.length > 40 ? '…' : ''}`;
 }
 
-export default function EmptyUploadState({ onUploadSuccess }: EmptyUploadStateProps) {
+function buildImageKitFileName(file: File) {
+  const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+  const safeName =
+    file.name
+      .replace(/\.pdf$/i, '')
+      .replace(/[^a-z0-9-_]+/gi, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 80) || 'document';
+
+  return `${safeName}-${timestamp}.pdf`;
+}
+
+async function fetchImageKitAuth() {
+  const response = await fetch('/api/imagekit-auth', {
+    method: 'GET',
+    cache: 'no-store',
+  });
+  const payload = (await response.json()) as Partial<ImageKitAuthResponse>;
+
+  if (!response.ok || !payload.ok) {
+    throw new Error(payload.message || 'Unable to authorize ImageKit upload.');
+  }
+
+  return payload as ImageKitAuthResponse;
+}
+
+async function uploadPdfToImageKit(file: File) {
+  const authPayload = await fetchImageKitAuth();
+  const formData = new FormData();
+
+  formData.append('file', file);
+  formData.append('fileName', buildImageKitFileName(file));
+  formData.append('publicKey', authPayload.publicKey);
+  formData.append('signature', authPayload.signature);
+  formData.append('expire', String(authPayload.expire));
+  formData.append('token', authPayload.token);
+  formData.append('folder', '/vox-academic/documents');
+  formData.append('useUniqueFileName', 'true');
+
+  const response = await fetch('https://upload.imagekit.io/api/v1/files/upload', {
+    method: 'POST',
+    body: formData,
+  });
+  const payload = (await response.json()) as ImageKitUploadResponse;
+
+  if (!response.ok || !payload.url || !payload.fileId) {
+    throw new Error(payload.message || 'ImageKit upload failed.');
+  }
+
+  return {
+    fileUrl: payload.url,
+    imageKitFileId: payload.fileId,
+  };
+}
+
+async function generateDocumentSummary(extractedText: string) {
+  const response = await fetch('/api/process-pdf', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text: extractedText }),
+  });
+  const payload = (await response.json()) as ProcessPdfResponse;
+
+  if (!response.ok || !payload.summary) {
+    throw new Error(payload.error?.message || 'AI summary generation failed.');
+  }
+
+  return payload.summary;
+}
+
+async function persistDocument(payload: {
+  title: string;
+  fileUrl: string;
+  imageKitFileId: string;
+  extractedText: string[];
+  summary: string;
+}) {
+  const response = await fetch('/api/documents', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  const responsePayload = (await response.json()) as { message?: string };
+
+  if (!response.ok) {
+    throw new Error(responsePayload.message || 'Document metadata could not be saved.');
+  }
+
+  return responsePayload;
+}
+
+export default function EmptyUploadState({ onUploadSuccess }: { onUploadSuccess: (doc: any) => void }) {
   const {
     setCleanedTextForSpeech,
     setCurrentSentence,
     setDocumentTitle,
     setDocumentSummary,
     setUploadedPdfFile,
+    refreshDocuments,
   } = usePDFContext();
   const [isDragging, setIsDragging] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -129,18 +247,34 @@ export default function EmptyUploadState({ onUploadSuccess }: EmptyUploadStatePr
     setErrorMessage('');
     setIsLoading(true);
     try {
-      const extractedText = await extractPdfText(file);
+      const { pageTexts, fullText } = await extractPdfText(file);
 
-      if (!extractedText) {
+      if (!fullText) {
         throw new Error('No readable text was found in this PDF. Scanned PDFs need OCR.');
       }
 
-      setDocumentTitle(deriveDocumentTitle(file, extractedText));
-      setDocumentSummary(deriveDocumentSummary(extractedText));
+      const documentTitle = deriveDocumentTitle(file, fullText);
+      const [documentSummary, imageKitUpload] = await Promise.all([
+        generateDocumentSummary(fullText).catch(() => deriveDocumentSummary(fullText)),
+        uploadPdfToImageKit(file),
+      ]);
+
+      const response = await persistDocument({
+        title: documentTitle,
+        fileUrl: imageKitUpload.fileUrl,
+        imageKitFileId: imageKitUpload.imageKitFileId,
+        extractedText: pageTexts,
+        summary: documentSummary,
+      });
+
+      const newDocument = (response as any).document;
+
+      setDocumentTitle(documentTitle);
+      setDocumentSummary(documentSummary);
       setUploadedPdfFile(file);
-      setCleanedTextForSpeech(extractedText);
-      setCurrentSentence(extractedText);
-      onUploadSuccess();
+      setCleanedTextForSpeech(fullText);
+      setCurrentSentence(fullText);
+      onUploadSuccess(newDocument);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to read the PDF.';
       setErrorMessage(message);
@@ -192,11 +326,10 @@ export default function EmptyUploadState({ onUploadSuccess }: EmptyUploadStatePr
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
             onClick={() => fileInputRef.current?.click()}
-            className={`group relative flex flex-col items-center justify-center rounded-2xl border-2 border-dashed p-8 text-center backdrop-blur-xl cursor-pointer transition-all duration-300 min-h-55 ${
-              isDragging
+            className={`group relative flex flex-col items-center justify-center rounded-2xl border-2 border-dashed p-8 text-center backdrop-blur-xl cursor-pointer transition-all duration-300 min-h-55 ${isDragging
                 ? 'border-blue-500 bg-blue-500/10 shadow-[0_0_30px_rgba(59,130,246,0.2)]'
                 : 'border-white/10 bg-white/3 hover:border-white/20 hover:bg-white/5'
-            }`}
+              }`}
           >
             <input
               type="file"
