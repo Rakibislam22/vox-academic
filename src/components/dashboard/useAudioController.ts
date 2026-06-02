@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useSpeechSynthesisSync } from './useSpeechSynthesisSync';
+import { fetchGeneratedAudio } from './audioApi';
 
-export function useAudioController(text: string) {
+export function useAudioController(text: string, voice = 'en-US-AndrewNeural') {
   const [playbackMode, setPlaybackMode] = useState<'stream' | 'browser'>('stream');
   const [isLoadingAudio, setIsLoadingAudio] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -62,41 +63,7 @@ export function useAudioController(text: string) {
     // 4. Initial Fetch
     setIsLoadingAudio(true);
     try {
-      const response = await fetch('/api/generate-audio', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text }),
-      });
-
-      const contentType = response.headers.get('content-type') || '';
-
-      // Check if server is requesting fallback to browser
-      if (contentType.includes('application/json')) {
-        const data = await response.json();
-        if (data.fallbackToBrowser) {
-          // Immediately cancel any HTML5 <audio> source loading
-          if (audioRef.current) {
-            audioRef.current.pause();
-            audioRef.current.src = '';
-          }
-
-          setPlaybackMode('browser');
-          speechSync.setRate(playbackSpeed); // Transfer the current speed natively
-          speechSync.play(); // Immediately initialize the SpeechSynthesisUtterance workflow
-          setIsPlaying(true); // Keep stream-state aligned until the derived browser state takes over
-
-          setShowFallbackToast(true);
-          if (toastTimeoutRef.current) window.clearTimeout(toastTimeoutRef.current);
-          toastTimeoutRef.current = window.setTimeout(() => {
-            setShowFallbackToast(false);
-          }, 4000);
-
-          return; // Skip HTML5 <audio> setup entirely
-        }
-      }
-
-      // Otherwise, process HTML5 Audio stream
-      const blob = await response.blob();
+      const blob = await fetchGeneratedAudio(text, voice);
       const url = URL.createObjectURL(blob);
 
       if (!audioRef.current) {
@@ -118,7 +85,7 @@ export function useAudioController(text: string) {
     } finally {
       setIsLoadingAudio(false);
     }
-  }, [playbackMode, isPlaying, text, speechSync, playbackSpeed]);
+  }, [playbackMode, isPlaying, text, speechSync, playbackSpeed, voice]);
 
   const onStop = useCallback(() => {
     if (playbackMode === 'browser') {
