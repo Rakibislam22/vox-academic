@@ -39,6 +39,7 @@ type StoredDocumentRecord = {
   summary?: string;
   createdAt: Date;
   updatedAt?: Date;
+  lastReadAt?: Date;
 };
 
 function jsonError(status: number, message: string, details?: Record<string, unknown>) {
@@ -63,6 +64,7 @@ function serializeDocument(document: StoredDocumentRecord) {
     summary: document.summary ?? '',
     createdAt: document.createdAt,
     updatedAt: document.updatedAt,
+    lastReadAt: document.lastReadAt,
   };
 }
 
@@ -148,8 +150,10 @@ export async function GET(request: Request) {
       query.summary = { $exists: true, $ne: '' };
     }
 
+    const sortQuery = normalizedView === 'recent' ? { lastReadAt: -1, createdAt: -1 } : { createdAt: -1 };
+
     const documents = await StoredDocument.find(query)
-      .sort({ createdAt: -1 })
+      .sort(sortQuery as any)
       .limit(limit)
       .lean<StoredDocumentRecord[]>()
       .exec();
@@ -161,6 +165,59 @@ export async function GET(request: Request) {
     });
   } catch (error) {
     console.error('Fetch documents error:', error);
+    return jsonError(500, 'Internal server error');
+  }
+}
+
+export async function DELETE(request: Request) {
+  const authenticatedUserId = await getAuthenticatedUserId();
+
+  if (!authenticatedUserId) {
+    return jsonError(401, 'Authentication required');
+  }
+
+  try {
+    const { searchParams } = new URL(request.url);
+    const documentId = searchParams.get('id')?.trim();
+
+    if (!documentId || !mongoose.Types.ObjectId.isValid(documentId)) {
+      return jsonError(400, 'A valid document ID is required');
+    }
+
+    await connectToDatabase();
+
+    const document = await StoredDocument.findById(documentId);
+
+    if (!document) {
+      return jsonError(404, 'Document not found');
+    }
+
+    if (String(document.userId) !== authenticatedUserId) {
+      return jsonError(403, 'Cannot delete a document belonging to another user');
+    }
+
+    // ImageKit Cloud Cleanup
+    const imageKitFileId = document.imageKitFileId;
+    if (imageKitFileId && process.env.IMAGEKIT_PRIVATE_KEY) {
+      const privateKeyBase64 = Buffer.from(process.env.IMAGEKIT_PRIVATE_KEY + ':').toString('base64');
+      const imageKitResponse = await fetch(`https://api.imagekit.io/v1/files/${imageKitFileId}`, {
+        method: 'DELETE',
+        headers: {
+          Authorization: `Basic ${privateKeyBase64}`,
+        },
+      });
+
+      if (!imageKitResponse.ok) {
+        console.warn(`ImageKit deletion warning for ${imageKitFileId}:`, await imageKitResponse.text());
+      }
+    }
+
+    // MongoDB Document Purge
+    await StoredDocument.findByIdAndDelete(documentId);
+
+    return NextResponse.json({ ok: true, message: 'Document completely purged' }, { status: 200 });
+  } catch (error) {
+    console.error('Delete document error:', error);
     return jsonError(500, 'Internal server error');
   }
 }
