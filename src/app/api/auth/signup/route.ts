@@ -36,10 +36,16 @@ export async function POST(request: Request) {
     );
   } catch (error) {
     if (error instanceof Error && error.message === 'User already exists') {
-      return NextResponse.json({ message: 'User already exists' }, { status: 409 });
+      return NextResponse.json(
+        { message: 'User already exists' },
+        { status: 409 },
+      );
     }
 
     console.error('Signup error:', error);
-    return NextResponse.json({ message: 'Internal server error' }, { status: 500 });
+    return NextResponse.json(
+      { message: 'Internal server error' },
+      { status: 500 },
+    );
   }
 }

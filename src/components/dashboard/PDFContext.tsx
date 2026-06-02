@@ -1,7 +1,17 @@
 'use client';
 
 import { createContext, useContext, useState, ReactNode } from 'react';
-import { useSpeechSynthesisSync, type SpeechSyncState } from './useSpeechSynthesisSync';
+import {
+  useSpeechSynthesisSync,
+  type SpeechSyncState,
+} from './useSpeechSynthesisSync';
+
+export type ViewState =
+  | 'library'
+  | 'recent'
+  | 'summaries'
+  | 'upload'
+  | 'settings';
 
 interface PDFContextType {
   currentSentence: string;
@@ -16,7 +26,11 @@ interface PDFContextType {
   setCleanedTextForSpeech: (text: string) => void;
   uploadedPdfFile: File | null;
   setUploadedPdfFile: (file: File | null) => void;
+  documentsRefreshKey: number;
+  refreshDocuments: () => void;
   speech: SpeechSyncState;
+  activeView: ViewState;
+  setActiveView: (view: ViewState) => void;
 }
 
 const PDFContext = createContext<PDFContextType | undefined>(undefined);
@@ -32,6 +46,8 @@ export function PDFProvider({ children }: { children: ReactNode }) {
   );
   const [cleanedTextForSpeech, setCleanedTextForSpeech] = useState('');
   const [uploadedPdfFile, setUploadedPdfFile] = useState<File | null>(null);
+  const [documentsRefreshKey, setDocumentsRefreshKey] = useState(0);
+  const [activeView, setActiveView] = useState<ViewState>('library');
 
   const speech = useSpeechSynthesisSync(cleanedTextForSpeech);
 
@@ -50,7 +66,11 @@ export function PDFProvider({ children }: { children: ReactNode }) {
         setCleanedTextForSpeech,
         uploadedPdfFile,
         setUploadedPdfFile,
+        documentsRefreshKey,
+        refreshDocuments: () => setDocumentsRefreshKey((key) => key + 1),
         speech,
+        activeView,
+        setActiveView,
       }}
     >
       {children}

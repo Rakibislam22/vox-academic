@@ -3,7 +3,11 @@ import CredentialsProvider from 'next-auth/providers/credentials';
 import GoogleProvider from 'next-auth/providers/google';
 
 import type { JWT } from 'next-auth/jwt';
-import { syncUserProfile, verifyCredentialsUser, findUserByEmail } from './user-store';
+import {
+  syncUserProfile,
+  verifyCredentialsUser,
+  findUserByEmail,
+} from './user-store';
 
 const googleClientId = process.env.GOOGLE_CLIENT_ID;
 const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET;
@@ -120,11 +124,16 @@ export const authConfig: NextAuthConfig = {
           const persistedUser = await findUserByEmail(appToken.user.email);
           if (persistedUser) {
             appToken.user = {
-              id: 'id' in persistedUser ? persistedUser.id : persistedUser._id.toString(),
+              id:
+                'id' in persistedUser
+                  ? persistedUser.id
+                  : persistedUser._id.toString(),
               name: persistedUser.name,
               email: persistedUser.email,
               image:
-                'image' in persistedUser ? (persistedUser.image ?? undefined) : persistedUser.image,
+                'image' in persistedUser
+                  ? (persistedUser.image ?? undefined)
+                  : persistedUser.image,
               provider:
                 'provider' in persistedUser
                   ? (persistedUser.provider ?? undefined)
@@ -140,10 +149,14 @@ export const authConfig: NextAuthConfig = {
     async session({ session, token }) {
       const appToken = token as AppToken;
       if (appToken.user?.id) session.user.id = appToken.user.id;
-      if (appToken.user?.provider) session.user.provider = appToken.user.provider;
-      if (typeof appToken.user?.name === 'string') session.user.name = appToken.user.name;
-      if (typeof appToken.user?.email === 'string') session.user.email = appToken.user.email;
-      if (typeof appToken.user?.image === 'string') session.user.image = appToken.user.image;
+      if (appToken.user?.provider)
+        session.user.provider = appToken.user.provider;
+      if (typeof appToken.user?.name === 'string')
+        session.user.name = appToken.user.name;
+      if (typeof appToken.user?.email === 'string')
+        session.user.email = appToken.user.email;
+      if (typeof appToken.user?.image === 'string')
+        session.user.image = appToken.user.image;
       return session;
     },
   },

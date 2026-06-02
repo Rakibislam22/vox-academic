@@ -85,7 +85,8 @@ function looksLikeDecorativeHeaderOrFooter(line: string) {
   const letters = compact.replace(/[^A-Za-z]/g, '');
 
   if (words.length <= 8 && compact.length <= 80 && letters.length > 0) {
-    const uppercaseRatio = letters.replace(/[^A-Z]/g, '').length / letters.length;
+    const uppercaseRatio =
+      letters.replace(/[^A-Z]/g, '').length / letters.length;
 
     if (uppercaseRatio >= 0.65) {
       return true;
@@ -165,8 +166,16 @@ function tokenizeSpeechText(text: string): AudioToken[] {
   return tokens;
 }
 
-function estimateDurationSeconds(text: string, wordCount: number, playbackSpeed: number) {
-  const safePlaybackSpeed = clamp(playbackSpeed, MIN_PLAYBACK_SPEED, MAX_PLAYBACK_SPEED);
+function estimateDurationSeconds(
+  text: string,
+  wordCount: number,
+  playbackSpeed: number,
+) {
+  const safePlaybackSpeed = clamp(
+    playbackSpeed,
+    MIN_PLAYBACK_SPEED,
+    MAX_PLAYBACK_SPEED,
+  );
   const cleanedLength = Math.max(1, text.replace(/\s+/g, ' ').trim().length);
   const normalizedWordCount = Math.max(1, wordCount);
   const wordsPerSecond = BASE_WORDS_PER_MINUTE / 60;
@@ -174,7 +183,10 @@ function estimateDurationSeconds(text: string, wordCount: number, playbackSpeed:
   const wordBasedDuration = normalizedWordCount / wordsPerSecond;
   const charBasedDuration = cleanedLength / BASE_CHARS_PER_SECOND;
 
-  return Math.max(1, Math.max(wordBasedDuration, charBasedDuration) / safePlaybackSpeed);
+  return Math.max(
+    1,
+    Math.max(wordBasedDuration, charBasedDuration) / safePlaybackSpeed,
+  );
 }
 
 function scoreVoice(voice: SpeechSynthesisVoice) {
@@ -198,7 +210,9 @@ function scoreVoice(voice: SpeechSynthesisVoice) {
   }
 
   if (
-    /female|woman|feminine|samantha|aria|emma|andrew|guy|victoria|alex|daniel|karen/i.test(name)
+    /female|woman|feminine|samantha|aria|emma|andrew|guy|victoria|alex|daniel|karen/i.test(
+      name,
+    )
   ) {
     score += 10;
   }
@@ -206,7 +220,10 @@ function scoreVoice(voice: SpeechSynthesisVoice) {
   return score;
 }
 
-function matchVoiceByPreference(voices: SpeechSynthesisVoice[], preference: string) {
+function matchVoiceByPreference(
+  voices: SpeechSynthesisVoice[],
+  preference: string,
+) {
   if (!preference) {
     return null;
   }
@@ -216,12 +233,17 @@ function matchVoiceByPreference(voices: SpeechSynthesisVoice[], preference: stri
   return (
     voices.find((voice) => voice.voiceURI.toLowerCase() === preferenceLower) ??
     voices.find((voice) => voice.name.toLowerCase() === preferenceLower) ??
-    voices.find((voice) => voice.name.toLowerCase().includes(preferenceLower)) ??
+    voices.find((voice) =>
+      voice.name.toLowerCase().includes(preferenceLower),
+    ) ??
     null
   );
 }
 
-function selectPreferredVoice(voices: SpeechSynthesisVoice[], preference: string) {
+function selectPreferredVoice(
+  voices: SpeechSynthesisVoice[],
+  preference: string,
+) {
   if (!voices.length) {
     return null;
   }
@@ -232,11 +254,19 @@ function selectPreferredVoice(voices: SpeechSynthesisVoice[], preference: string
     return preferred;
   }
 
-  return [...voices].sort((left, right) => scoreVoice(right) - scoreVoice(left))[0] ?? null;
+  return (
+    [...voices].sort(
+      (left, right) => scoreVoice(right) - scoreVoice(left),
+    )[0] ?? null
+  );
 }
 
-export function useAudioReader(rawText: string, preferredVoiceHint = ''): AudioReaderState {
-  const isSupported = typeof window !== 'undefined' && 'speechSynthesis' in window;
+export function useAudioReader(
+  rawText: string,
+  preferredVoiceHint = '',
+): AudioReaderState {
+  const isSupported =
+    typeof window !== 'undefined' && 'speechSynthesis' in window;
   const cleanedText = useMemo(() => cleanSpeechText(rawText), [rawText]);
   const tokens = useMemo(() => tokenizeSpeechText(cleanedText), [cleanedText]);
   const words = useMemo(() => tokens.map((token) => token.text), [tokens]);
@@ -245,7 +275,8 @@ export function useAudioReader(rawText: string, preferredVoiceHint = ''): AudioR
   const [playbackSpeed, setPlaybackSpeedState] = useState(1);
   const [activeWordIndex, setActiveWordIndex] = useState(-1);
   const [currentWord, setCurrentWord] = useState('');
-  const [currentWordRange, setCurrentWordRange] = useState<AudioWordRange | null>(null);
+  const [currentWordRange, setCurrentWordRange] =
+    useState<AudioWordRange | null>(null);
   const [currentTime, setCurrentTime] = useState(0);
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [voiceOverride, setVoiceOverride] = useState(preferredVoiceHint);
@@ -256,7 +287,10 @@ export function useAudioReader(rawText: string, preferredVoiceHint = ''): AudioR
   const startWordIndexRef = useRef(0);
   const activeWordIndexRef = useRef(-1);
   const currentTimeRef = useRef(0);
-  const playbackAnchorRef = useRef<{ startedAt: number; baseTime: number } | null>(null);
+  const playbackAnchorRef = useRef<{
+    startedAt: number;
+    baseTime: number;
+  } | null>(null);
   const progressFrameRef = useRef<number | null>(null);
   const selectedVoiceRef = useRef<SpeechSynthesisVoice | null>(null);
 
@@ -353,7 +387,8 @@ export function useAudioReader(rawText: string, preferredVoiceHint = ''): AudioR
       setCurrentWordRange({ start: token.start, end: token.end });
 
       const textLength = Math.max(1, cleanedText.length);
-      const anchor = typeof sourceCharIndex === 'number' ? sourceCharIndex : token.start;
+      const anchor =
+        typeof sourceCharIndex === 'number' ? sourceCharIndex : token.start;
       const estimatedTime = (anchor / textLength) * duration;
 
       updateProgress(estimatedTime);
@@ -407,7 +442,14 @@ export function useAudioReader(rawText: string, preferredVoiceHint = ''): AudioR
     };
 
     progressFrameRef.current = window.requestAnimationFrame(tick);
-  }, [duration, playbackSpeed, status, tokens, updateProgress, updateWordState]);
+  }, [
+    duration,
+    playbackSpeed,
+    status,
+    tokens,
+    updateProgress,
+    updateWordState,
+  ]);
 
   const stop = useCallback(() => {
     utteranceSequenceRef.current += 1;
@@ -505,9 +547,13 @@ export function useAudioReader(rawText: string, preferredVoiceHint = ''): AudioR
           return;
         }
 
-        const remainingTextUpToBoundary = utteranceText.substring(0, charIndex).trim();
+        const remainingTextUpToBoundary = utteranceText
+          .substring(0, charIndex)
+          .trim();
         const relativeWordIndex =
-          remainingTextUpToBoundary === '' ? 0 : remainingTextUpToBoundary.split(/\s+/).length;
+          remainingTextUpToBoundary === ''
+            ? 0
+            : remainingTextUpToBoundary.split(/\s+/).length;
         const absoluteWordIndex = startWordIndexRef.current + relativeWordIndex;
         const totalWordsLength = words.length;
 
@@ -618,7 +664,10 @@ export function useAudioReader(rawText: string, preferredVoiceHint = ''): AudioR
       return;
     }
 
-    if ((window.speechSynthesis.paused || isPausedRef.current) && utteranceRef.current) {
+    if (
+      (window.speechSynthesis.paused || isPausedRef.current) &&
+      utteranceRef.current
+    ) {
       window.speechSynthesis.resume();
       isPausedRef.current = false;
       setStatus('playing');
@@ -635,7 +684,13 @@ export function useAudioReader(rawText: string, preferredVoiceHint = ''): AudioR
     }
 
     speakFromWordIndex(0);
-  }, [cleanedText, isSupported, scheduleProgressTick, speakFromWordIndex, tokens.length]);
+  }, [
+    cleanedText,
+    isSupported,
+    scheduleProgressTick,
+    speakFromWordIndex,
+    tokens.length,
+  ]);
 
   const pause = useCallback(() => {
     if (!isSupported || !window.speechSynthesis.speaking) {
@@ -658,7 +713,10 @@ export function useAudioReader(rawText: string, preferredVoiceHint = ''): AudioR
   }, [isSupported]);
 
   const resume = useCallback(() => {
-    if (!isSupported || (!window.speechSynthesis.paused && !isPausedRef.current)) {
+    if (
+      !isSupported ||
+      (!window.speechSynthesis.paused && !isPausedRef.current)
+    ) {
       return;
     }
 
@@ -678,7 +736,10 @@ export function useAudioReader(rawText: string, preferredVoiceHint = ''): AudioR
       return;
     }
 
-    if ((window.speechSynthesis.paused || isPausedRef.current) && utteranceRef.current) {
+    if (
+      (window.speechSynthesis.paused || isPausedRef.current) &&
+      utteranceRef.current
+    ) {
       resume();
       return;
     }
@@ -693,7 +754,11 @@ export function useAudioReader(rawText: string, preferredVoiceHint = ''): AudioR
 
   const setPlaybackSpeed = useCallback(
     (nextSpeed: number) => {
-      const safeSpeed = clamp(nextSpeed, MIN_PLAYBACK_SPEED, MAX_PLAYBACK_SPEED);
+      const safeSpeed = clamp(
+        nextSpeed,
+        MIN_PLAYBACK_SPEED,
+        MAX_PLAYBACK_SPEED,
+      );
       setPlaybackSpeedState(safeSpeed);
 
       if (!isSupported) {
@@ -701,7 +766,8 @@ export function useAudioReader(rawText: string, preferredVoiceHint = ''): AudioR
       }
 
       if (utteranceRef.current && status === 'playing') {
-        const resumeWordIndex = activeWordIndexRef.current >= 0 ? activeWordIndexRef.current : 0;
+        const resumeWordIndex =
+          activeWordIndexRef.current >= 0 ? activeWordIndexRef.current : 0;
         speakFromWordIndex(resumeWordIndex);
       } else if (playbackAnchorRef.current) {
         playbackAnchorRef.current = {
@@ -763,10 +829,19 @@ export function useAudioReader(rawText: string, preferredVoiceHint = ''): AudioR
         setStatus('paused');
       }
     },
-    [cleanedText, duration, isSupported, speakFromWordIndex, status, tokens, updateProgress],
+    [
+      cleanedText,
+      duration,
+      isSupported,
+      speakFromWordIndex,
+      status,
+      tokens,
+      updateProgress,
+    ],
   );
 
-  const currentWordAtIndex = activeWordIndex >= 0 ? (tokens[activeWordIndex] ?? null) : null;
+  const currentWordAtIndex =
+    activeWordIndex >= 0 ? (tokens[activeWordIndex] ?? null) : null;
 
   return {
     isSupported,

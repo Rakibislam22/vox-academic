@@ -2,9 +2,11 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { signOut, useSession } from 'next-auth/react';
 import type { Session } from 'next-auth';
+import { usePDFContext } from './PDFContext';
+import { Upload } from 'lucide-react';
 
 type Props = {
   isDrawer?: boolean;
@@ -12,9 +14,18 @@ type Props = {
   session?: Session | null;
 };
 
-export default function Sidebar({ isDrawer = false, onClose, session: sessionProp }: Props) {
-  const [activeNav, setActiveNav] = useState('library');
+export default function Sidebar({
+  isDrawer = false,
+  onClose,
+  session: sessionProp,
+}: Props) {
+  const [documentCounts, setDocumentCounts] = useState({
+    library: 0,
+    recent: 0,
+    summaries: 0,
+  });
   const { data: clientSession, status } = useSession();
+  const { documentsRefreshKey, activeView, setActiveView } = usePDFContext();
   const session = sessionProp ?? clientSession;
   const isAuthenticated = !!session?.user || status === 'authenticated';
 
@@ -28,6 +39,50 @@ export default function Sidebar({ isDrawer = false, onClose, session: sessionPro
     .map((part) => part[0])
     .join('')
     .toUpperCase();
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setDocumentCounts({ library: 0, recent: 0, summaries: 0 });
+      return;
+    }
+
+    let cancelled = false;
+
+    const fetchCount = async (view: 'library' | 'recent' | 'summaries') => {
+      const response = await fetch(`/api/documents?view=${view}`, {
+        cache: 'no-store',
+      });
+
+      if (!response.ok) {
+        return 0;
+      }
+
+      const payload = (await response.json()) as { documents?: unknown[] };
+      return payload.documents?.length ?? 0;
+    };
+
+    const refreshCounts = async () => {
+      try {
+        const [library, recent, summaries] = await Promise.all([
+          fetchCount('library'),
+          fetchCount('recent'),
+          fetchCount('summaries'),
+        ]);
+
+        if (!cancelled) {
+          setDocumentCounts({ library, recent, summaries });
+        }
+      } catch (error) {
+        console.error('Failed to refresh document counts:', error);
+      }
+    };
+
+    void refreshCounts();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [documentsRefreshKey, isAuthenticated]);
 
   const navItems = [
     { id: 'library', label: 'My Library', icon: '📚', badge: '5' },
@@ -61,26 +116,49 @@ export default function Sidebar({ isDrawer = false, onClose, session: sessionPro
           )}
         </div>
 
+        <button
+          onClick={() => setActiveView('upload')}
+          className="w-full flex items-center justify-center gap-2 rounded-xl bg-linear-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-semibold text-sm py-3 px-4 shadow-[0_0_20px_rgba(37,99,235,0.2)] active:scale-98 transition-all mb-6"
+        >
+          <Upload className="h-4 w-4" />
+          <span>Upload PDF</span>
+        </button>
+
         <nav className="space-y-2 min-w-0">
-          {navItems.map((item) => (
-            <button
-              key={item.id}
-              onClick={() => setActiveNav(item.id)}
-              className={`flex w-full items-center gap-3 rounded-lg px-4 py-3 text-label transition-transform active:scale-95 whitespace-nowrap ${
-                activeNav === item.id
-                  ? 'border border-electric-blue/40 bg-electric-blue/20 text-electric-blue'
-                  : 'text-white/70 hover:bg-navy-dark hover:text-white/90'
-              }`}
-            >
-              <span className="text-lg">{item.icon}</span>
-              <span className="flex-1 truncate text-left">{item.label}</span>
-              {item.badge && (
-                <span className="rounded-full bg-electric-blue/30 px-2 py-1 text-xs text-electric-blue">
-                  {item.badge}
-                </span>
-              )}
-            </button>
-          ))}
+          {navItems.map((item) => {
+            const visibleBadge =
+              item.id === 'library'
+                ? String(documentCounts.library)
+                : item.id === 'recent'
+                  ? documentCounts.recent
+                    ? String(documentCounts.recent)
+                    : ''
+                  : item.id === 'summaries'
+                    ? documentCounts.summaries
+                      ? String(documentCounts.summaries)
+                      : ''
+                    : item.badge;
+
+            return (
+              <button
+                key={item.id}
+                onClick={() => setActiveView(item.id as any)}
+                className={`flex w-full items-center gap-3 rounded-lg px-4 py-3 text-label transition-transform active:scale-95 whitespace-nowrap ${
+                  activeView === item.id
+                    ? 'border border-electric-blue/40 bg-electric-blue/20 text-electric-blue'
+                    : 'text-white/70 hover:bg-navy-dark hover:text-white/90'
+                }`}
+              >
+                <span className="text-lg">{item.icon}</span>
+                <span className="flex-1 truncate text-left">{item.label}</span>
+                {visibleBadge && (
+                  <span className="rounded-full bg-electric-blue/30 px-2 py-1 text-xs text-electric-blue">
+                    {visibleBadge}
+                  </span>
+                )}
+              </button>
+            );
+          })}
         </nav>
       </div>
 
@@ -102,7 +180,9 @@ export default function Sidebar({ isDrawer = false, onClose, session: sessionPro
                 )}
               </div>
               <div className="flex-1 min-w-0">
-                <div className="text-label text-white/90 truncate">{displayName}</div>
+                <div className="text-label text-white/90 truncate">
+                  {displayName}
+                </div>
                 <div className="text-xs text-white/50 truncate">{email}</div>
                 <div className="mt-1 text-[11px] uppercase tracking-[0.18em] text-electric-blue/90">
                   {provider}
@@ -125,7 +205,9 @@ export default function Sidebar({ isDrawer = false, onClose, session: sessionPro
             </div>
             <div className="flex-1 min-w-0">
               <div className="text-label truncate">Guest</div>
-              <div className="text-xs text-white/50 truncate">Sign in to save progress</div>
+              <div className="text-xs text-white/50 truncate">
+                Sign in to save progress
+              </div>
             </div>
           </div>
         )}

@@ -64,7 +64,11 @@ export default function ControlBar(_props: ControlBarProps) {
             aria-label={isPlaying ? 'Pause audio' : 'Play audio'}
             className="inline-flex h-14 w-14 items-center justify-center rounded-full bg-sky-500 text-slate-950 shadow-[0_0_24px_rgba(14,165,233,0.55),0_0_60px_rgba(6,182,212,0.2)] transition-transform duration-200 active:scale-90 disabled:cursor-not-allowed disabled:opacity-40"
           >
-            {isPlaying ? <PauseIcon className="h-6 w-6" /> : <PlayIcon className="h-6 w-6" />}
+            {isPlaying ? (
+              <PauseIcon className="h-6 w-6" />
+            ) : (
+              <PlayIcon className="h-6 w-6" />
+            )}
           </button>
 
           <div className="ml-2">
@@ -104,7 +108,11 @@ export default function ControlBar(_props: ControlBarProps) {
             aria-label={isPlaying ? 'Pause audio' : 'Play audio'}
             className="inline-flex h-14 w-14 items-center justify-center rounded-full bg-sky-500 text-slate-950 shadow-[0_0_24px_rgba(14,165,233,0.55),0_0_60px_rgba(6,182,212,0.2)] transition-transform duration-200 active:scale-90 disabled:cursor-not-allowed disabled:opacity-40"
           >
-            {isPlaying ? <PauseIcon className="h-6 w-6" /> : <PlayIcon className="h-6 w-6" />}
+            {isPlaying ? (
+              <PauseIcon className="h-6 w-6" />
+            ) : (
+              <PlayIcon className="h-6 w-6" />
+            )}
           </button>
         </div>
 

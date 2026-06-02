@@ -21,9 +21,21 @@ const Interactive = () => {
             title: 'Smart Summaries',
             desc: 'AI generates key takeaways automatically',
           },
-          { icon: '📱', title: 'Mobile Ready', desc: 'Learn anywhere with offline audio support' },
-          { icon: '🔄', title: 'Sync Playback', desc: 'Real-time highlighting syncs with audio' },
-          { icon: '🌐', title: 'Multi-Language', desc: 'Support for 50+ languages and accents' },
+          {
+            icon: '📱',
+            title: 'Mobile Ready',
+            desc: 'Learn anywhere with offline audio support',
+          },
+          {
+            icon: '🔄',
+            title: 'Sync Playback',
+            desc: 'Real-time highlighting syncs with audio',
+          },
+          {
+            icon: '🌐',
+            title: 'Multi-Language',
+            desc: 'Support for 50+ languages and accents',
+          },
         ].map((feature, idx) => (
           <div
             key={idx}
@@ -33,7 +45,9 @@ const Interactive = () => {
               {feature.icon}
             </div>
             <h3 className="text-subheading mb-2">{feature.title}</h3>
-            <p className="text-white/70 text-sm leading-relaxed">{feature.desc}</p>
+            <p className="text-white/70 text-sm leading-relaxed">
+              {feature.desc}
+            </p>
             <div className="absolute inset-0 bg-linear-to-br from-electric-blue/5 to-transparent rounded-xl opacity-0 group-hover:opacity-100 transition-opacity" />
           </div>
         ))}

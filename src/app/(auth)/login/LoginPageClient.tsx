@@ -51,7 +51,10 @@ export default function LoginPageClient() {
       });
 
       if (result?.error) {
-        setError('password', { type: 'manual', message: 'Invalid email or password' });
+        setError('password', {
+          type: 'manual',
+          message: 'Invalid email or password',
+        });
         return;
       }
 
@@ -69,7 +72,10 @@ export default function LoginPageClient() {
       });
     } catch (error) {
       console.error('Credentials login system catch error:', error);
-      setError('password', { type: 'manual', message: 'An unexpected error occurred.' });
+      setError('password', {
+        type: 'manual',
+        message: 'An unexpected error occurred.',
+      });
     }
   };
 
@@ -95,8 +101,8 @@ export default function LoginPageClient() {
                 Sign in to continue your PDF learning workflow.
               </h1>
               <p className="mt-4 max-w-md text-sm leading-7 text-white/70">
-                Access your PDF library, generated summaries, and dashboard tools from a single
-                secure session.
+                Access your PDF library, generated summaries, and dashboard
+                tools from a single secure session.
               </p>
             </div>
 
@@ -118,7 +124,9 @@ export default function LoginPageClient() {
               <span className="inline-flex rounded-full border border-cyan-400/30 bg-cyan-400/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.24em] text-cyan-200">
                 Vox Academic
               </span>
-              <h1 className="mt-4 text-3xl font-semibold text-white">Sign in</h1>
+              <h1 className="mt-4 text-3xl font-semibold text-white">
+                Sign in
+              </h1>
               <p className="mt-2 text-sm text-white/65">
                 Use your account or continue with Google.
               </p>
@@ -133,14 +141,16 @@ export default function LoginPageClient() {
 
             {registered && (
               <div className="mt-6 rounded-2xl border border-emerald-400/25 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-100">
-                Account created. Sign in with your email and password or continue automatically
-                after signup.
+                Account created. Sign in with your email and password or
+                continue automatically after signup.
               </div>
             )}
 
             <form className="mt-8 space-y-4" onSubmit={handleSubmit(onSubmit)}>
               <label className="form-control w-full">
-                <span className="label-text mb-2 text-sm font-medium text-white/80">Email</span>
+                <span className="label-text mb-2 text-sm font-medium text-white/80">
+                  Email
+                </span>
                 <input
                   type="email"
                   autoComplete="email"
@@ -149,12 +159,16 @@ export default function LoginPageClient() {
                   {...register('email')}
                 />
                 {errors.email && (
-                  <span className="mt-2 text-sm text-red-300">{errors.email.message}</span>
+                  <span className="mt-2 text-sm text-red-300">
+                    {errors.email.message}
+                  </span>
                 )}
               </label>
 
               <label className="form-control w-full">
-                <span className="label-text mb-2 text-sm font-medium text-white/80">Password</span>
+                <span className="label-text mb-2 text-sm font-medium text-white/80">
+                  Password
+                </span>
                 <input
                   type="password"
                   autoComplete="current-password"
@@ -163,7 +177,9 @@ export default function LoginPageClient() {
                   {...register('password')}
                 />
                 {errors.password && (
-                  <span className="mt-2 text-sm text-red-300">{errors.password.message}</span>
+                  <span className="mt-2 text-sm text-red-300">
+                    {errors.password.message}
+                  </span>
                 )}
               </label>
 
@@ -189,7 +205,10 @@ export default function LoginPageClient() {
 
             <p className="mt-6 text-center text-sm text-white/70">
               No account yet?{' '}
-              <Link href="/signup" className="font-medium text-cyan-200 hover:text-cyan-100">
+              <Link
+                href="/signup"
+                className="font-medium text-cyan-200 hover:text-cyan-100"
+              >
                 Create one
               </Link>
             </p>

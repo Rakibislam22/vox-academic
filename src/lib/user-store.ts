@@ -82,7 +82,10 @@ export async function syncUserProfile(userData: UserProfileInput) {
   ).exec();
 }
 
-export function getUserIdentifier(user: { _id?: { toString(): string }; id?: string }) {
+export function getUserIdentifier(user: {
+  _id?: { toString(): string };
+  id?: string;
+}) {
   if (user.id) return user.id;
   if (user._id) return user._id.toString();
   return undefined;

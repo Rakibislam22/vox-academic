@@ -6,7 +6,9 @@ const Footer = () => {
         <div className="grid grid-cols-1 md:grid-cols-5 gap-8 mb-12">
           {/* Brand */}
           <div className="md:col-span-1">
-            <h3 className="text-subheading mb-4 accent-primary">Vox Academic</h3>
+            <h3 className="text-subheading mb-4 accent-primary">
+              Vox Academic
+            </h3>
             <p className="text-white/60 text-sm leading-relaxed mb-6">
               Transform your learning experience with AI-powered audio lessons.
             </p>
@@ -25,21 +27,30 @@ const Footer = () => {
 
           {/* Product */}
           <div>
-            <h4 className="text-label mb-4 accent-primary font-semibold">Product</h4>
+            <h4 className="text-label mb-4 accent-primary font-semibold">
+              Product
+            </h4>
             <ul className="space-y-3 text-sm text-white/60">
-              {['Features', 'Pricing', 'Security', 'Performance'].map((item) => (
-                <li key={item}>
-                  <a href="#" className="hover:text-white/80 transition-colors">
-                    {item}
-                  </a>
-                </li>
-              ))}
+              {['Features', 'Pricing', 'Security', 'Performance'].map(
+                (item) => (
+                  <li key={item}>
+                    <a
+                      href="#"
+                      className="hover:text-white/80 transition-colors"
+                    >
+                      {item}
+                    </a>
+                  </li>
+                ),
+              )}
             </ul>
           </div>
 
           {/* Resources */}
           <div>
-            <h4 className="text-label mb-4 accent-primary font-semibold">Resources</h4>
+            <h4 className="text-label mb-4 accent-primary font-semibold">
+              Resources
+            </h4>
             <ul className="space-y-3 text-sm text-white/60">
               {['Documentation', 'Blog', 'FAQ', 'API Docs'].map((item) => (
                 <li key={item}>
@@ -53,7 +64,9 @@ const Footer = () => {
 
           {/* Company */}
           <div>
-            <h4 className="text-label mb-4 accent-primary font-semibold">Company</h4>
+            <h4 className="text-label mb-4 accent-primary font-semibold">
+              Company
+            </h4>
             <ul className="space-y-3 text-sm text-white/60">
               {['About Us', 'Contact', 'Careers', 'Blog'].map((item) => (
                 <li key={item}>
@@ -67,15 +80,22 @@ const Footer = () => {
 
           {/* Legal */}
           <div>
-            <h4 className="text-label mb-4 accent-primary font-semibold">Legal</h4>
+            <h4 className="text-label mb-4 accent-primary font-semibold">
+              Legal
+            </h4>
             <ul className="space-y-3 text-sm text-white/60">
-              {['Privacy Policy', 'Terms of Service', 'Cookies', 'GDPR'].map((item) => (
-                <li key={item}>
-                  <a href="#" className="hover:text-white/80 transition-colors">
-                    {item}
-                  </a>
-                </li>
-              ))}
+              {['Privacy Policy', 'Terms of Service', 'Cookies', 'GDPR'].map(
+                (item) => (
+                  <li key={item}>
+                    <a
+                      href="#"
+                      className="hover:text-white/80 transition-colors"
+                    >
+                      {item}
+                    </a>
+                  </li>
+                ),
+              )}
             </ul>
           </div>
         </div>
@@ -83,7 +103,9 @@ const Footer = () => {
         {/* Footer Bottom */}
         <div className="border-t border-blue-600/40 pt-8">
           <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-            <div className="text-sm text-white/50">© 2026 Vox Academic. All rights reserved.</div>
+            <div className="text-sm text-white/50">
+              © 2026 Vox Academic. All rights reserved.
+            </div>
             <div className="text-xs text-white/40">
               Made with <span className="text-blue-600/50">❤</span> by{' '}
               <a

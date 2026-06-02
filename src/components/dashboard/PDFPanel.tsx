@@ -36,8 +36,13 @@ const wordTokenClass =
   'inline-flex cursor-pointer items-center rounded px-0.5 transition-all duration-200 ease-out hover:text-sky-400';
 
 export default function PDFPanel() {
-  const { currentSentence, speech, uploadedPdfFile, setCleanedTextForSpeech, setCurrentSentence } =
-    usePDFContext();
+  const {
+    currentSentence,
+    speech,
+    uploadedPdfFile,
+    setCleanedTextForSpeech,
+    setCurrentSentence,
+  } = usePDFContext();
 
   const documentRef = useRef<PDFDocumentProxy | null>(null);
   const pageTextCacheRef = useRef<Map<number, string>>(new Map());
@@ -52,7 +57,8 @@ export default function PDFPanel() {
     () => speech.tokens as Array<{ text: string; start: number; end: number }>,
     [speech.tokens],
   );
-  const currentWordLabel = speech.currentWord || readingTokens[speech.activeWordIndex]?.text || '';
+  const currentWordLabel =
+    speech.currentWord || readingTokens[speech.activeWordIndex]?.text || '';
   const handleWordClick = useCallback(
     (wordIndex: number) => {
       speech.speakFromWordIndex(wordIndex);
@@ -129,7 +135,9 @@ export default function PDFPanel() {
         if (!cancelled) {
           console.error('Failed to load PDF document:', error);
           setDocumentError(
-            error instanceof Error ? error.message : 'Failed to load the PDF document.',
+            error instanceof Error
+              ? error.message
+              : 'Failed to load the PDF document.',
           );
         }
       } finally {
@@ -168,7 +176,9 @@ export default function PDFPanel() {
 
         const pageText =
           pageTextCacheRef.current.get(currentPage) ??
-          sanitizePageText(textContent ? normalizeTextFromContent(textContent) : '');
+          sanitizePageText(
+            textContent ? normalizeTextFromContent(textContent) : '',
+          );
 
         if (!pageTextCacheRef.current.has(currentPage)) {
           pageTextCacheRef.current.set(currentPage, pageText);
@@ -179,7 +189,11 @@ export default function PDFPanel() {
       } catch (error) {
         if (!cancelled) {
           console.error('Failed to load PDF page text:', error);
-          setDocumentError(error instanceof Error ? error.message : 'Failed to load the PDF page.');
+          setDocumentError(
+            error instanceof Error
+              ? error.message
+              : 'Failed to load the PDF page.',
+          );
         }
       }
     };
@@ -198,7 +212,9 @@ export default function PDFPanel() {
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="min-w-0">
               <h2 className="text-subheading text-base font-semibold tracking-tight text-white sm:text-lg lg:text-xl">
-                <span className="text-cyan-accent">Project Summary Report Vox Academic</span>
+                <span className="text-cyan-accent">
+                  Project Summary Report Vox Academic
+                </span>
               </h2>
             </div>
 
@@ -216,7 +232,9 @@ export default function PDFPanel() {
                 : 'Awaiting synced page text'}
             </span>
             <span className="h-1 w-1 rounded-full bg-white/20" />
-            <span>{speech.isPlaying ? 'Live sync active' : 'Ready for playback'}</span>
+            <span>
+              {speech.isPlaying ? 'Live sync active' : 'Ready for playback'}
+            </span>
             <span className="h-1 w-1 rounded-full bg-white/20" />
             <span>
               {currentSentence.trim().length
@@ -243,7 +261,9 @@ export default function PDFPanel() {
             <button
               type="button"
               onClick={handleNextPage}
-              disabled={!hasPdfFile || currentPage >= totalPages || isDocumentLoading}
+              disabled={
+                !hasPdfFile || currentPage >= totalPages || isDocumentLoading
+              }
               className="inline-flex h-11 items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 text-sm font-medium text-white transition-all duration-200 hover:border-cyan-400/30 hover:bg-white/8 hover:shadow-[0_0_24px_rgba(26,140,255,0.12)] active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
             >
               Next Page
@@ -270,10 +290,12 @@ export default function PDFPanel() {
               {!hasPdfFile ? (
                 <div className="flex min-h-104 items-center justify-center rounded-2xl bg-white/5 p-6 text-center text-slate-300 sm:border-none">
                   <div className="max-w-md">
-                    <p className="text-lg font-semibold text-white">No PDF selected yet</p>
+                    <p className="text-lg font-semibold text-white">
+                      No PDF selected yet
+                    </p>
                     <p className="mt-2 text-sm leading-6 text-slate-400">
-                      Upload a PDF from the left panel to extract page text and sync the visible
-                      reading surface into the audio reader.
+                      Upload a PDF from the left panel to extract page text and
+                      sync the visible reading surface into the audio reader.
                     </p>
                   </div>
                 </div>
@@ -285,7 +307,8 @@ export default function PDFPanel() {
                       Loading PDF
                     </p>
                     <p className="mt-2 text-sm text-slate-400">
-                      Preparing page text for responsive reading and karaoke sync.
+                      Preparing page text for responsive reading and karaoke
+                      sync.
                     </p>
                   </div>
                 </div>
@@ -298,7 +321,9 @@ export default function PDFPanel() {
                         : 'Ready to sync'}
                     </span>
                     <span>
-                      {speech.currentWord || currentWordLabel || 'Listening for word boundaries'}
+                      {speech.currentWord ||
+                        currentWordLabel ||
+                        'Listening for word boundaries'}
                     </span>
                   </div>
                   <div className="flex-1 min-h-0 w-full overflow-y-auto whitespace-pre-wrap break-words bg-slate-950/40 p-6 rounded-xl sm:border-none">
@@ -322,9 +347,12 @@ export default function PDFPanel() {
                     ) : (
                       <div className="flex min-h-64 items-center justify-center text-center text-sm text-slate-400">
                         <div className="max-w-md">
-                          <p className="text-base font-medium text-white">No readable text yet</p>
+                          <p className="text-base font-medium text-white">
+                            No readable text yet
+                          </p>
                           <p className="mt-2 leading-6">
-                            Move to a page with extracted text to enable the synced reading view.
+                            Move to a page with extracted text to enable the
+                            synced reading view.
                           </p>
                         </div>
                       </div>

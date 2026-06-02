@@ -20,7 +20,9 @@ export default function Navbar() {
   const initials = getInitials(session?.user?.name, session?.user?.email);
   const email = session?.user?.email || '';
   const provider =
-    (session && (session as unknown as { user?: { provider?: string } }).user?.provider) ??
+    (session &&
+      (session as unknown as { user?: { provider?: string } }).user
+        ?.provider) ??
     'credentials';
   const image = session?.user?.image || '';
 
@@ -72,7 +74,10 @@ export default function Navbar() {
             </ul>
           </div>
 
-          <Link href="/" className="btn btn-ghost text-lg font-semibold tracking-wide text-white">
+          <Link
+            href="/"
+            className="btn btn-ghost text-lg font-semibold tracking-wide text-white"
+          >
             Vox Academic
           </Link>
         </div>
@@ -112,7 +117,11 @@ export default function Navbar() {
               >
                 <span className="avatar placeholder">
                   {image ? (
-                    <img src={image} alt={displayName} className="w-9 rounded-full object-cover" />
+                    <img
+                      src={image}
+                      alt={displayName}
+                      className="w-9 rounded-full object-cover"
+                    />
                   ) : (
                     <span className="w-9 rounded-full bg-linear-to-r from-cyan-500 to-sky-500 text-sm font-semibold text-white">
                       {initials}
@@ -120,8 +129,12 @@ export default function Navbar() {
                   )}
                 </span>
                 <span className="hidden text-left sm:block">
-                  <span className="block text-sm font-medium leading-4">{displayName}</span>
-                  <span className="block text-xs text-white/55">{provider}</span>
+                  <span className="block text-sm font-medium leading-4">
+                    {displayName}
+                  </span>
+                  <span className="block text-xs text-white/55">
+                    {provider}
+                  </span>
                 </span>
               </button>
               <ul
@@ -138,7 +151,10 @@ export default function Navbar() {
                   <Link href="/dashboard">Dashboard</Link>
                 </li>
                 <li>
-                  <button type="button" onClick={() => void signOut({ callbackUrl: '/' })}>
+                  <button
+                    type="button"
+                    onClick={() => void signOut({ callbackUrl: '/' })}
+                  >
                     Sign out
                   </button>
                 </li>

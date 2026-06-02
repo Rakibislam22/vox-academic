@@ -39,7 +39,9 @@ const FeatureSe = () => {
             <div className="h-1 w-3/4 bg-white/10 rounded" />
           </div>
           <div className="w-1/2 p-2 bg-cyan-accent/5">
-            <div className="text-[8px] text-cyan-accent font-bold mb-1">AI INSIGHT</div>
+            <div className="text-[8px] text-cyan-accent font-bold mb-1">
+              AI INSIGHT
+            </div>
             <div className="h-2 w-full bg-cyan-accent/20 rounded mb-1" />
             <div className="h-2 w-2/3 bg-cyan-accent/20 rounded" />
           </div>
@@ -102,7 +104,9 @@ const FeatureSe = () => {
                 >
                   {f.title}
                 </h3>
-                <p className="text-white/60 leading-relaxed text-sm md:text-base">{f.desc}</p>
+                <p className="text-white/60 leading-relaxed text-sm md:text-base">
+                  {f.desc}
+                </p>
               </div>
             </div>
           ))}
