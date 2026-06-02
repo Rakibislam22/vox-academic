@@ -2,7 +2,6 @@ import { createRequire } from 'node:module';
 import { GoogleGenAI } from '@google/genai';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
-import { ProxyAgent } from 'undici';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -103,6 +102,7 @@ type GeminiAudioResponse = {
 };
 
 const geminiApiKey = process.env.GEMINI_API_KEY?.trim();
+let geminiClient: GoogleGenAI | null | undefined;
 
 function resolveProxyUrl() {
   for (const key of PROXY_ENV_KEYS) {
@@ -124,6 +124,7 @@ function createGeminiFetch() {
   }
 
   try {
+    const { ProxyAgent } = require('undici') as typeof import('undici');
     const dispatcher = new ProxyAgent(proxyUrl);
 
     return (input: RequestInfo | URL, init?: RequestInit) =>
@@ -137,12 +138,18 @@ function createGeminiFetch() {
   }
 }
 
-const geminiClient = geminiApiKey
-  ? new GoogleGenAI({
-      apiKey: geminiApiKey,
-      fetch: createGeminiFetch(),
-    } as never)
-  : null;
+function getGeminiClient() {
+  if (!geminiApiKey) {
+    return null;
+  }
+
+  geminiClient ??= new GoogleGenAI({
+    apiKey: geminiApiKey,
+    fetch: createGeminiFetch(),
+  } as never);
+
+  return geminiClient;
+}
 
 function buildJsonError(status: number, message: string, details?: Record<string, unknown>) {
   return NextResponse.json(
@@ -314,7 +321,9 @@ function isGeminiNetworkError(error: unknown) {
 }
 
 export async function POST(request: Request) {
-  if (!geminiClient || !geminiApiKey) {
+  const client = getGeminiClient();
+
+  if (!client) {
     return buildJsonError(500, 'Server configuration error: missing GEMINI_API_KEY', {
       code: 'MISSING_GEMINI_API_KEY',
     });
@@ -335,7 +344,7 @@ export async function POST(request: Request) {
     const preferredVoice = resolveVoice(request);
 
     const audioResponse = (await Promise.race([
-      geminiClient.models.generateContent({
+      client.models.generateContent({
         model: process.env.GEMINI_TTS_MODEL?.trim() || DEFAULT_MODEL,
         contents: `Speak the following text naturally and clearly. Preserve the meaning exactly.\n\n${parsedBody.text}`,
         config: {
