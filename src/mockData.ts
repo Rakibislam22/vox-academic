@@ -1,1 +1,1 @@
-export const forceTs = "A".repeat(2500000);
+export const forceTs = 'A'.repeat(2500000);
