@@ -40,6 +40,7 @@ export default function PDFPanel() {
     currentSentence,
     speech,
     uploadedPdfFile,
+    documentTitle,
     setCleanedTextForSpeech,
     setCurrentSentence,
   } = usePDFContext();
@@ -212,9 +213,7 @@ export default function PDFPanel() {
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="min-w-0">
               <h2 className="text-subheading text-base font-semibold tracking-tight text-white sm:text-lg lg:text-xl">
-                <span className="text-cyan-accent">
-                  Project Summary Report Vox Academic
-                </span>
+                <span className="text-cyan-accent">{documentTitle}</span>
               </h2>
             </div>
 
