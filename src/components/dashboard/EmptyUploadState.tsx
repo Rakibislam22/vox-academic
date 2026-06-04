@@ -10,6 +10,9 @@ import {
   Plus,
   Download,
   Search,
+  Eye,
+  ExternalLink,
+  X,
 } from 'lucide-react';
 import {
   GlobalWorkerOptions,
@@ -255,6 +258,7 @@ export default function EmptyUploadState({
   const [isLoading, setIsLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Drag and Drop Handlers
@@ -496,6 +500,7 @@ export default function EmptyUploadState({
               {searchResults.map((result) => {
                 const isProcessingThisResult = processingUrl === result.pdfUrl;
                 const isAnyResultProcessing = Boolean(processingUrl);
+                const isPreviewOpen = previewUrl === result.pdfUrl;
 
                 return (
                   <article
@@ -518,25 +523,67 @@ export default function EmptyUploadState({
                         </p>
                       </div>
 
-                      <button
-                        type="button"
-                        onClick={() => void handleAddSearchResult(result)}
-                        disabled={isLoading || isAnyResultProcessing}
-                        className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-lg border border-indigo-400/30 bg-indigo-500/15 px-3 text-xs font-semibold text-indigo-100 transition-all hover:border-indigo-300/50 hover:bg-indigo-500/25 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 disabled:active:scale-100"
-                      >
-                        {isProcessingThisResult ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <>
-                            <Download className="h-4 w-4" />
-                            <Plus className="h-3.5 w-3.5" />
-                          </>
-                        )}
-                        {isProcessingThisResult
-                          ? 'Adding...'
-                          : 'Add to Library'}
-                      </button>
+                      <div className="flex shrink-0 flex-wrap gap-2 sm:justify-end">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setPreviewUrl(isPreviewOpen ? null : result.pdfUrl)
+                          }
+                          className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-cyan-400/30 bg-cyan-500/10 px-3 text-xs font-semibold text-cyan-100 transition-all hover:border-cyan-300/50 hover:bg-cyan-500/20 active:scale-95"
+                          aria-expanded={isPreviewOpen}
+                        >
+                          {isPreviewOpen ? (
+                            <X className="h-4 w-4" />
+                          ) : (
+                            <Eye className="h-4 w-4" />
+                          )}
+                          {isPreviewOpen ? 'Close' : 'Preview'}
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => void handleAddSearchResult(result)}
+                          disabled={isLoading || isAnyResultProcessing}
+                          className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-indigo-400/30 bg-indigo-500/15 px-3 text-xs font-semibold text-indigo-100 transition-all hover:border-indigo-300/50 hover:bg-indigo-500/25 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 disabled:active:scale-100"
+                        >
+                          {isProcessingThisResult ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <>
+                              <Download className="h-4 w-4" />
+                              <Plus className="h-3.5 w-3.5" />
+                            </>
+                          )}
+                          {isProcessingThisResult
+                            ? 'Adding...'
+                            : 'Add to Library'}
+                        </button>
+                      </div>
                     </div>
+
+                    {isPreviewOpen && (
+                      <div className="mt-4 overflow-hidden rounded-xl border border-cyan-400/20 bg-slate-950/60">
+                        <div className="flex items-center justify-between gap-3 border-b border-white/10 px-3 py-2">
+                          <span className="truncate text-xs font-semibold text-slate-300">
+                            PDF Preview
+                          </span>
+                          <a
+                            href={result.pdfUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex h-8 shrink-0 items-center justify-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-2.5 text-xs font-semibold text-white transition-all hover:bg-white/10"
+                          >
+                            <ExternalLink className="h-3.5 w-3.5" />
+                            Open PDF
+                          </a>
+                        </div>
+                        <iframe
+                          src={result.pdfUrl}
+                          title={`${result.title} preview`}
+                          className="h-96 w-full bg-white"
+                        />
+                      </div>
+                    )}
                   </article>
                 );
               })}
