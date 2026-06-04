@@ -1,15 +1,29 @@
 'use client';
 
 import { useRef, useState } from 'react';
-import { Upload, Globe, FileText, ArrowRight, Loader2 } from 'lucide-react';
+import {
+  Upload,
+  Globe,
+  FileText,
+  ArrowRight,
+  Loader2,
+  Plus,
+  Download,
+  Search,
+  Eye,
+  ExternalLink,
+  X,
+} from 'lucide-react';
 import {
   GlobalWorkerOptions,
   getDocument,
 } from 'pdfjs-dist/legacy/build/pdf.mjs';
 import { usePDFContext } from './PDFContext';
+import { useInternetPdfSearch } from './useInternetPdfSearch';
+import type { InternetPdfResult } from '@/types/internet-pdf';
 
 interface EmptyUploadStateProps {
-  onUploadSuccess: () => void;
+  onUploadSuccess: (doc: unknown) => void;
 }
 
 GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs';
@@ -35,6 +49,11 @@ type ProcessPdfResponse = {
   error?: {
     message?: string;
   };
+};
+
+type PersistDocumentResponse = {
+  message?: string;
+  document?: unknown;
 };
 
 async function extractPdfText(file: File) {
@@ -204,7 +223,7 @@ async function persistDocument(payload: {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   });
-  const responsePayload = (await response.json()) as { message?: string };
+  const responsePayload = (await response.json()) as PersistDocumentResponse;
 
   if (!response.ok) {
     throw new Error(
@@ -217,9 +236,7 @@ async function persistDocument(payload: {
 
 export default function EmptyUploadState({
   onUploadSuccess,
-}: {
-  onUploadSuccess: (doc: any) => void;
-}) {
+}: EmptyUploadStateProps) {
   const {
     setCleanedTextForSpeech,
     setCurrentSentence,
@@ -228,10 +245,20 @@ export default function EmptyUploadState({
     setUploadedPdfFile,
     refreshDocuments,
   } = usePDFContext();
+  const {
+    searchResults,
+    isSearching,
+    processingUrl,
+    searchError,
+    setSearchError,
+    searchPdfs,
+    ingestPdfResult,
+  } = useInternetPdfSearch();
   const [isDragging, setIsDragging] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Drag and Drop Handlers
@@ -287,13 +314,14 @@ export default function EmptyUploadState({
         summary: documentSummary,
       });
 
-      const newDocument = (response as any).document;
+      const newDocument = response.document;
 
       setDocumentTitle(documentTitle);
       setDocumentSummary(documentSummary);
       setUploadedPdfFile(file);
       setCleanedTextForSpeech(fullText);
       setCurrentSentence(fullText);
+      refreshDocuments();
       onUploadSuccess(newDocument);
     } catch (error) {
       const message =
@@ -307,9 +335,19 @@ export default function EmptyUploadState({
   const handleWebSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchQuery.trim()) {
-      setErrorMessage(
-        'Web discovery is not wired to extraction yet. Upload a PDF to sync real text.',
-      );
+      setErrorMessage('');
+      void searchPdfs(searchQuery);
+    }
+  };
+
+  const handleAddSearchResult = async (result: InternetPdfResult) => {
+    setErrorMessage('');
+    setSearchError('');
+
+    const file = await ingestPdfResult(result);
+
+    if (file) {
+      await triggerProcessing(file);
     }
   };
 
@@ -418,13 +456,145 @@ export default function EmptyUploadState({
               />
               <button
                 type="submit"
-                disabled={!searchQuery.trim()}
+                disabled={!searchQuery.trim() || isSearching}
                 className="absolute right-1.5 rounded-lg bg-indigo-600 p-2 text-white transition-all hover:bg-indigo-500 active:scale-95 disabled:opacity-40 disabled:hover:bg-indigo-600 disabled:active:scale-100"
+                aria-label="Search open-access PDFs"
               >
-                <ArrowRight className="h-4 w-4" />
+                {isSearching ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <ArrowRight className="h-4 w-4" />
+                )}
               </button>
             </div>
           </form>
+
+          {(isSearching || searchResults.length > 0 || searchError) && (
+            <div className="space-y-3 rounded-2xl border border-white/10 bg-slate-950/35 p-4 backdrop-blur-xl">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2 text-sm font-semibold text-white">
+                  <Search className="h-4 w-4 text-cyan-300" />
+                  Open-access PDFs
+                </div>
+                {searchResults.length > 0 && (
+                  <span className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-xs text-slate-300">
+                    {searchResults.length} found
+                  </span>
+                )}
+              </div>
+
+              {isSearching && (
+                <div className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-slate-300">
+                  <Loader2 className="h-4 w-4 animate-spin text-indigo-300" />
+                  Searching scholarly PDF sources...
+                </div>
+              )}
+
+              {!isSearching && searchResults.length === 0 && !searchError && (
+                <div className="rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-slate-400">
+                  No direct PDFs were found. Try adding an author, paper title,
+                  or field-specific keyword.
+                </div>
+              )}
+
+              {searchResults.map((result) => {
+                const isProcessingThisResult = processingUrl === result.pdfUrl;
+                const isAnyResultProcessing = Boolean(processingUrl);
+                const isPreviewOpen = previewUrl === result.pdfUrl;
+
+                return (
+                  <article
+                    key={result.pdfUrl}
+                    className="rounded-xl border border-white/10 bg-white/5 p-4 shadow-[0_18px_50px_rgba(0,0,0,0.22)] transition-all hover:border-cyan-400/30 hover:bg-white/8"
+                  >
+                    <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                      <div className="min-w-0 space-y-2">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="inline-flex items-center gap-1.5 rounded-full border border-cyan-400/20 bg-cyan-400/10 px-2.5 py-1 text-xs font-medium text-cyan-200">
+                            <FileText className="h-3.5 w-3.5" />
+                            {result.domain}
+                          </span>
+                        </div>
+                        <h5 className="line-clamp-2 text-sm font-semibold leading-5 text-white">
+                          {result.title}
+                        </h5>
+                        <p className="line-clamp-3 text-xs leading-5 text-slate-400">
+                          {result.snippet}
+                        </p>
+                      </div>
+
+                      <div className="flex shrink-0 flex-wrap gap-2 sm:justify-end">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setPreviewUrl(isPreviewOpen ? null : result.pdfUrl)
+                          }
+                          className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-cyan-400/30 bg-cyan-500/10 px-3 text-xs font-semibold text-cyan-100 transition-all hover:border-cyan-300/50 hover:bg-cyan-500/20 active:scale-95"
+                          aria-expanded={isPreviewOpen}
+                        >
+                          {isPreviewOpen ? (
+                            <X className="h-4 w-4" />
+                          ) : (
+                            <Eye className="h-4 w-4" />
+                          )}
+                          {isPreviewOpen ? 'Close' : 'Preview'}
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => void handleAddSearchResult(result)}
+                          disabled={isLoading || isAnyResultProcessing}
+                          className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-indigo-400/30 bg-indigo-500/15 px-3 text-xs font-semibold text-indigo-100 transition-all hover:border-indigo-300/50 hover:bg-indigo-500/25 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 disabled:active:scale-100"
+                        >
+                          {isProcessingThisResult ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <>
+                              <Download className="h-4 w-4" />
+                              <Plus className="h-3.5 w-3.5" />
+                            </>
+                          )}
+                          {isProcessingThisResult
+                            ? 'Adding...'
+                            : 'Add to Library'}
+                        </button>
+                      </div>
+                    </div>
+
+                    {isPreviewOpen && (
+                      <div className="mt-4 overflow-hidden rounded-xl border border-cyan-400/20 bg-slate-950/60">
+                        <div className="flex items-center justify-between gap-3 border-b border-white/10 px-3 py-2">
+                          <span className="truncate text-xs font-semibold text-slate-300">
+                            PDF Preview
+                          </span>
+                          <a
+                            href={result.pdfUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex h-8 shrink-0 items-center justify-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-2.5 text-xs font-semibold text-white transition-all hover:bg-white/10"
+                          >
+                            <ExternalLink className="h-3.5 w-3.5" />
+                            Open PDF
+                          </a>
+                        </div>
+                        <iframe
+                          src={result.pdfUrl}
+                          title={`${result.title} preview`}
+                          className="h-96 w-full bg-white"
+                        />
+                      </div>
+                    )}
+                  </article>
+                );
+              })}
+
+              {searchError && (
+                <div className="rounded-xl border border-rose-400/20 bg-rose-500/10 px-4 py-3 text-sm text-rose-100">
+                  {searchError}
+                </div>
+              )}
+            </div>
+          )}
 
           {errorMessage && (
             <div className="rounded-2xl border border-rose-400/20 bg-rose-500/10 px-4 py-3 text-sm text-rose-100">

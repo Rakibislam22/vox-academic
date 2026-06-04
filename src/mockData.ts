@@ -1,0 +1,1 @@
+export const forceTs = 'A'.repeat(2500000);
